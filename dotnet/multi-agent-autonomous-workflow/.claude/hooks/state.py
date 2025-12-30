@@ -284,18 +284,25 @@ def get_workflow_summary() -> Dict[str, Any]:
 # CLI interface for testing
 if __name__ == '__main__':
     import sys
+    import argparse
 
     if len(sys.argv) < 2:
         print('Usage: python state.py <command> [args]')
-        print('Commands: init, status, add-story, update-story, complete')
+        print('Commands: init, status, add-story, update-story, add-blocker, add-decision, complete')
         sys.exit(1)
 
     command = sys.argv[1]
 
     if command == 'init':
         goal = sys.argv[2] if len(sys.argv) > 2 else 'Test workflow'
-        state = initialize_workflow(goal)
+        session_id = None
+        for i, arg in enumerate(sys.argv):
+            if arg == '--session' and i + 1 < len(sys.argv):
+                session_id = sys.argv[i + 1]
+        state = initialize_workflow(goal, session_id)
         print(f'Initialized workflow: {state["workflowId"]}')
+        if state.get('stories'):
+            print(f'Resuming with {len(state["stories"])} existing stories')
 
     elif command == 'status':
         summary = get_workflow_summary()
@@ -303,14 +310,60 @@ if __name__ == '__main__':
 
     elif command == 'add-story':
         title = sys.argv[2] if len(sys.argv) > 2 else 'New Story'
-        story_id = add_story(title)
-        print(f'Added story: {story_id}')
+        size = 'M'  # Default size
+        acceptance_criteria = []
+
+        # Parse optional arguments
+        for i, arg in enumerate(sys.argv):
+            if arg == '--size' and i + 1 < len(sys.argv):
+                size = sys.argv[i + 1].upper()
+            elif arg == '--ac' and i + 1 < len(sys.argv):
+                acceptance_criteria.append(sys.argv[i + 1])
+
+        story_id = add_story(title, size, acceptance_criteria if acceptance_criteria else None)
+        print(f'Added story: {story_id} (size: {size})')
 
     elif command == 'update-story':
         story_id = sys.argv[2] if len(sys.argv) > 2 else 'S1'
         status = sys.argv[3] if len(sys.argv) > 3 else 'completed'
-        update_story_status(story_id, status)
+        agent = None
+        for i, arg in enumerate(sys.argv):
+            if arg == '--agent' and i + 1 < len(sys.argv):
+                agent = sys.argv[i + 1]
+        update_story_status(story_id, status, agent)
         print(f'Updated {story_id} to {status}')
+
+    elif command == 'add-blocker':
+        description = sys.argv[2] if len(sys.argv) > 2 else 'Unknown blocker'
+        severity = 'medium'
+        for i, arg in enumerate(sys.argv):
+            if arg == '--severity' and i + 1 < len(sys.argv):
+                severity = sys.argv[i + 1]
+        add_blocker(description, severity)
+        print(f'Added blocker: {description} (severity: {severity})')
+
+    elif command == 'resolve-blocker':
+        index = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        resolve_blocker(index)
+        print(f'Resolved blocker at index {index}')
+
+    elif command == 'add-decision':
+        title = sys.argv[2] if len(sys.argv) > 2 else 'Decision'
+        choice = sys.argv[3] if len(sys.argv) > 3 else 'TBD'
+        rationale = sys.argv[4] if len(sys.argv) > 4 else 'No rationale provided'
+        decision_id = add_decision(title, choice, rationale)
+        print(f'Added decision: {decision_id}')
+
+    elif command == 'checkpoint':
+        if should_checkpoint():
+            print('CHECKPOINT_DUE: Human review recommended')
+            sys.exit(2)  # Special exit code for checkpoint
+        else:
+            print('No checkpoint needed')
+
+    elif command == 'record-review':
+        record_human_review()
+        print('Recorded human review checkpoint')
 
     elif command == 'complete':
         complete_workflow()
