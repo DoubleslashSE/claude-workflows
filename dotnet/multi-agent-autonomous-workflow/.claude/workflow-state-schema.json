@@ -190,6 +190,104 @@
           }
         }
       }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Quality and progress metrics",
+      "properties": {
+        "storiesCompleted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "storiesFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "avgAttemptsPerStory": {
+          "type": "number"
+        },
+        "totalTestsWritten": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalLinesChanged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reviewFindings": {
+          "type": "object",
+          "properties": {
+            "critical": { "type": "integer", "minimum": 0 },
+            "warnings": { "type": "integer", "minimum": 0 },
+            "suggestions": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "securityFindings": {
+          "type": "object",
+          "properties": {
+            "critical": { "type": "integer", "minimum": 0 },
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "coveragePercentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "contextSummary": {
+      "type": "object",
+      "description": "Context preserved for multi-hour sessions",
+      "properties": {
+        "keyDecisions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Important decisions made during workflow"
+        },
+        "completedPatterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Patterns successfully implemented"
+        },
+        "openConcerns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Issues to revisit later"
+        },
+        "lessonsLearned": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Insights from this workflow"
+        },
+        "lastProgressReport": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When last progress report was generated"
+        }
+      }
+    },
+    "fileChanges": {
+      "type": "array",
+      "description": "Track files changed per story for rollback",
+      "items": {
+        "type": "object",
+        "properties": {
+          "storyId": { "type": "string" },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "string" },
+                "action": { "type": "string", "enum": ["created", "modified", "deleted"] }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

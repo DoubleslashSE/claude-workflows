@@ -234,6 +234,34 @@ Task({
 })
 ```
 
+### Spawn SECURITY Agent
+
+Use when: Story is marked [SECURITY-SENSITIVE], or after any authentication/payment code
+
+```
+Task({
+  subagent_type: "code-security-reviewer",
+  prompt: `
+    Read the security agent instructions from .claude/agents/security.md
+
+    ## Story to Review
+    Title: [Story title]
+    Security Concerns: [Why this is security-sensitive]
+
+    ## Files to Review
+    [List from developer]
+
+    ## Instructions
+    1. Perform OWASP Top 10 compliance check
+    2. Review for .NET-specific vulnerabilities
+    3. Run dependency vulnerability scan
+    4. Return SECURE or NEEDS REMEDIATION
+
+    Return your security review in the format specified in the agent instructions.
+  `
+})
+```
+
 ---
 
 ## Workflow Phases
@@ -252,14 +280,30 @@ Task({
 ```
 For each story:
   1. Update state: story in_progress
-  2. Spawn DEVELOPER -> Implement
-  3. Spawn TESTER -> Verify
-     - If FAIL: Back to DEVELOPER
-  4. Spawn REVIEWER -> Review
+  2. GATE 1 (Pre-Implementation): Verify design clarity
+  3. Spawn DEVELOPER -> Implement (TDD)
+  4. GATE 2 (Post-Implementation): Build passes, tests pass
+  5. Spawn TESTER -> Verify
+     - If FAIL: Root cause analysis -> Back to DEVELOPER
+  6. GATE 3 (Coverage): Verify coverage meets threshold
+  7. Spawn REVIEWER -> Code review
      - If CHANGES REQUESTED: Back to DEVELOPER
-  5. Update state: story completed
-  6. Check checkpoint (every 5 stories -> human review)
+  8. If story is [SECURITY-SENSITIVE]:
+     - Spawn SECURITY -> Security review
+     - If NEEDS REMEDIATION: Back to DEVELOPER
+  9. Update state: story completed
+  10. Check checkpoint (every 5 stories -> human review)
 ```
+
+### Quality Gates
+
+| Gate | When | Checks | Failure Action |
+|------|------|--------|----------------|
+| G1 | Before DEVELOPER | Design complete, AC clear | Back to ARCHITECT |
+| G2 | After DEVELOPER | Build passes, tests pass | Fix or escalate |
+| G3 | After TESTER | Coverage threshold met | Add tests |
+| G4 | If security-sensitive | Security scan passes | Fix vulnerabilities |
+| G5 | During REVIEWER | Architecture compliant | Fix violations |
 
 ### Phase 3: Completion
 ```
@@ -322,24 +366,69 @@ Awaiting human input...
 
 ## Recovery Protocols
 
+### Failure Analysis (Before Retry)
+
+When TESTER returns FAIL, before retrying, analyze:
+
+```markdown
+## Failure Analysis
+
+**Symptom:** [What exactly failed]
+**Category:**
+- [ ] Logic error (code doesn't do what it should)
+- [ ] Missing edge case (unhandled scenario)
+- [ ] Integration issue (doesn't work with other components)
+- [ ] Test bug (test itself is wrong)
+
+**Root Cause:** [Why this happened]
+
+**Fix Strategy:**
+- [ ] Targeted fix (small change)
+- [ ] Redesign needed (approach is wrong)
+- [ ] Clarification needed (requirements unclear)
+```
+
+### Smart Retry with Context
+
+When retrying, provide context to DEVELOPER:
+
+```
+Previous attempt failed because: [specific reason]
+The failing test was: [test name and assertion]
+Root cause analysis: [from above]
+Apply this targeted fix: [specific guidance]
+
+DO NOT repeat the same approach that failed.
+```
+
 ### Stuck in Loop
 If developer -> tester -> developer cycles 3+ times:
 1. Pause execution
-2. Spawn ARCHITECT to review approach
-3. Consider simplifying or redesigning
-4. Update state with decision
+2. Perform root cause analysis (see above)
+3. Spawn ARCHITECT to review approach
+4. Consider simplifying or redesigning
+5. Update state with decision
+6. If still stuck, escalate to human
 
 ### Tests Won't Pass
 If tests fail repeatedly:
-1. Check if requirements are achievable
-2. Consider splitting story
-3. Escalate if unclear
+1. Verify the test is correct (test the test)
+2. Check if requirements are achievable
+3. Consider splitting story
+4. Escalate if unclear
 
 ### Agent Timeout
 If subagent takes too long:
 1. Check task output for progress
 2. Consider breaking into smaller tasks
 3. Resume with focused prompt
+
+### Rollback on Critical Failure
+
+If story fails 3 times, offer rollback option:
+1. List all files changed for this story
+2. Prompt human: "Rollback changes and redesign?"
+3. If yes, revert changes and start fresh with ARCHITECT
 
 ---
 
@@ -419,6 +508,49 @@ Cancel the current workflow
 
 ---
 
+## Progress Reporting
+
+### Automatic Progress Reports
+
+Every 60 minutes (or every 3 completed stories), generate:
+
+```markdown
+## Autonomous Session Progress ([elapsed time])
+
+**Status:** [X/Y] stories complete ([percentage]%)
+**Current:** [Story in progress]
+**Remaining:** [List remaining stories]
+
+**Quality Metrics:**
+- Tests: [passing] passing, [failing] failing
+- Coverage: [percentage]%
+- Review findings: [count] addressed
+
+**Decisions Made:**
+1. [Key decision with rationale]
+2. [Key decision with rationale]
+
+**Concerns/Blockers:**
+- [Any issues that may need attention]
+
+**Next Checkpoint:** [When human review is due]
+```
+
+### Story Completion Summary
+
+After each story, log briefly:
+
+```markdown
+### Story [ID] Complete: [Title]
+- Time: [duration]
+- Tests added: [count]
+- Files changed: [count]
+- Review status: APPROVED
+- Lessons learned: [Brief insight for knowledge base]
+```
+
+---
+
 ## Files Reference
 
 | File | Purpose |
@@ -429,8 +561,10 @@ Cancel the current workflow
 | `.claude/agents/tester.md` | Tester agent prompt |
 | `.claude/agents/reviewer.md` | Reviewer agent prompt |
 | `.claude/agents/devops.md` | DevOps agent prompt |
+| `.claude/agents/security.md` | Security agent prompt |
 | `.claude/hooks/safety.py` | PreToolUse safety hook |
 | `.claude/hooks/audit.py` | PostToolUse audit hook |
 | `.claude/hooks/state.py` | State management CLI |
 | `.claude/workflow-state.json` | Current workflow state |
+| `.claude/lessons-learned.md` | Accumulated learnings |
 | `.claude/audit.log` | Tool usage audit log |

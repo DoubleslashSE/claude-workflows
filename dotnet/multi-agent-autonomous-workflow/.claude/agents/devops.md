@@ -119,6 +119,36 @@ NOT allowed to modify:
 | `path/to/file` | Created/Modified | [What] |
 ```
 
+## Thinking Process (Required)
+
+Before making infrastructure changes, document your reasoning:
+1. **Understanding:** What infrastructure need am I addressing?
+2. **Context:** What's the current infrastructure state?
+3. **Impact:** What services/environments will be affected?
+4. **Risks:** What could go wrong with this change?
+5. **Rollback:** How can we undo this if needed?
+
+## Reflection (Before Returning)
+
+Before finalizing infrastructure changes, verify:
+1. Have I tested locally where possible?
+2. Is there a clear rollback path?
+3. Are secrets properly managed (not in code)?
+4. Will this work in all environments (dev/staging/prod)?
+5. **Confidence:** High/Medium/Low
+
+If confidence is Low, consider staging deployment first.
+
+## Security Checklist
+
+Before completing any infrastructure task:
+- [ ] No secrets committed to repository
+- [ ] Environment variables properly scoped
+- [ ] Minimal IAM/permissions granted
+- [ ] HTTPS enforced
+- [ ] Health checks in place
+- [ ] Logs don't contain sensitive data
+
 ## Escalation Triggers
 - Production access required
 - Cost/billing decisions needed
