@@ -1,215 +1,200 @@
 # Claude Code Workflows
 
-A collection of autonomous workflows for [Claude Code](https://claude.com/claude-code) that enable extended, high-quality code production with minimal human intervention.
+A collection of **platform-agnostic** autonomous workflows for [Claude Code](https://claude.com/claude-code) that enable extended, high-quality code production with minimal human intervention.
 
-## Overview
+## Architecture Overview
 
-These workflows leverage Claude Code's extension system—**subagents**, **skills**, **slash commands**, and **hooks**—to orchestrate complex software development tasks. Each workflow follows [Anthropic's best practices](https://www.anthropic.com/engineering/claude-code-best-practices) for building agents.
+This repository is organized to support **separation of concerns** between orchestration logic and platform-specific details:
+
+```
+Workflows/
+├── orchestration/                  # Platform-agnostic workflow definitions
+│   └── multi-agent-workflow/       # Multi-agent autonomous workflow
+│       └── .claude/
+│           ├── agents/             # Subagent definitions (generic)
+│           ├── skills/             # Workflow knowledge
+│           ├── commands/           # Slash commands
+│           └── hooks/              # Safety & audit hooks
+│
+├── platforms/                      # Platform-specific configurations
+│   ├── dotnet/
+│   │   ├── platform.json           # Build commands, conventions
+│   │   └── skills/                 # .NET-specific knowledge
+│   ├── typescript/
+│   │   ├── platform.json           # TypeScript/Next.js commands
+│   │   └── skills/                 # TypeScript patterns
+│   └── python/
+│       └── platform.json           # Python commands
+│
+└── dotnet/                         # (Legacy) Combined workflow + platform
+    └── multi-agent-autonomous-workflow/
+```
+
+## Key Concepts
+
+### Separation of Concerns
+
+| Component | Responsibility | Location |
+|-----------|---------------|----------|
+| **Orchestration** | Agent coordination, quality gates, iteration loops | `orchestration/` |
+| **Platform** | Build/test commands, naming conventions, patterns | `platforms/` |
+| **Agent** | Infrastructure, task management, PR creation | Agent repo |
+
+### Platform Configuration
+
+Each platform defines a `platform.json` that provides:
+
+```json
+{
+  "name": "dotnet",
+  "commands": {
+    "build": "dotnet build",
+    "test": "dotnet test",
+    "coverage": "dotnet test /p:CollectCoverage=true"
+  },
+  "conventions": {
+    "testNaming": "{Method}_{Scenario}_{Expected}"
+  },
+  "qualityGates": {
+    "coverageThresholds": { "S": 70, "M": 80, "L": 85, "XL": 90 }
+  }
+}
+```
+
+Agents reference these via the platform CLI:
+```bash
+python .claude/core/platform.py get-command build
+python .claude/core/platform.py get-threshold M
+```
 
 ## Available Workflows
 
-### .NET Multi-Agent Autonomous Workflow
+### Multi-Agent Autonomous Workflow
 
-**Location:** `dotnet/multi-agent-autonomous-workflow/.claude/`
+**Location:** `orchestration/multi-agent-workflow/.claude/`
 
-A hierarchical multi-agent system for .NET projects following Clean Architecture and CQRS patterns.
+A hierarchical multi-agent system that coordinates specialized agents for extended autonomous work.
 
-#### Quick Start
+#### Agents
+
+| Agent | Purpose | Tools |
+|-------|---------|-------|
+| `analyst` | Break goals into user stories | Read, Glob, Grep, WebSearch |
+| `architect` | Technical design | Read, Glob, Grep, WebSearch |
+| `developer` | TDD implementation | Read, Edit, Write, Bash |
+| `tester` | Verify acceptance criteria | Bash, Read, Grep, Glob |
+| `reviewer` | Code quality review | Read, Grep, Glob |
+| `security` | Security audit | Read, Grep, Bash |
+| `devops` | Infrastructure | Read, Edit, Write, Bash |
+
+#### Workflow Phases
+
+```
+Phase 1: Analysis
+├── analyst → User stories with acceptance criteria
+└── architect → Technical design
+
+Phase 2: Implementation Loop (per story)
+├── developer → Implement with TDD
+├── tester → Verify tests pass
+├── reviewer → Code review
+└── security → Security audit (if flagged)
+
+Phase 3: Completion
+└── devops → Infrastructure (if needed)
+```
+
+## Available Platforms
+
+### .NET with Clean Architecture
+- **Path:** `platforms/dotnet/`
+- **Skills:** dotnet-clean-architecture, tdd-workflow
+- **Pattern:** CQRS with MediatR, Entity Framework Core
+
+### TypeScript with Next.js
+- **Path:** `platforms/typescript/`
+- **Skills:** typescript-patterns
+- **Pattern:** App Router, React Query, Zustand
+
+## Usage
+
+### With Claude Code Agent (Docker)
+
+Configure environment variables:
+```env
+WORKFLOW_REPO=your-org/claude-workflows
+WORKFLOW_PATH=orchestration/multi-agent-workflow
+PLATFORM=dotnet  # or typescript
+```
+
+The Agent will load the orchestration workflow and platform config automatically.
+
+### Direct Installation
+
+Copy the workflow to your project:
+```bash
+# Copy orchestration workflow
+cp -r orchestration/multi-agent-workflow/.claude /path/to/project/
+
+# Copy platform config
+cp platforms/dotnet/platform.json /path/to/project/
+cp -r platforms/dotnet/skills/* /path/to/project/.claude/skills/
+```
+
+### Slash Commands
 
 ```bash
-# Copy to your project
-cp -r dotnet/multi-agent-autonomous-workflow/.claude /path/to/your/project/
-
-# Activate with slash command
-/workflow Add user authentication with JWT tokens
-
-# Or natural language (skill auto-invokes)
-Use the multi-agent workflow to implement a bidding feature
+/workflow [goal]      # Start full autonomous workflow
+/implement [story]    # Implement single story
+/review [files]       # Run code review
+/status               # Check workflow progress
 ```
 
-#### Components
+## Creating Custom Platforms
 
-| Type | Count | Purpose |
-|------|-------|---------|
-| Subagents | 7 | Task execution (analyst, architect, developer, tester, reviewer, security, devops) |
-| Skills | 4 | Knowledge patterns (clean-architecture, tdd, security-review, workflow orchestration) |
-| Commands | 4 | Explicit triggers (`/workflow`, `/implement`, `/review`, `/status`) |
-| Hooks | 2 | Safety checks and audit logging |
-
-#### Tech Stack
-
-- .NET 10 with Clean Architecture
-- CQRS with MediatR
-- FluentValidation
-- Entity Framework Core
-- xUnit + Moq
-
----
-
-## Architecture
-
-Each workflow follows Claude Code's extension architecture:
-
+1. Create platform directory:
 ```
-.claude/
-├── settings.json         # Hook configuration
-├── agents/               # Subagents (task executors with separate context)
-│   └── {name}.md
-├── commands/             # Slash commands (explicit /command invocation)
-│   └── {name}.md
-├── skills/               # Skills (knowledge, auto-invoked by model)
-│   └── {name}/
-│       ├── SKILL.md
-│       └── {supporting-files}.md
-└── hooks/                # Hooks (event-based automation)
-    └── {name}.py
+platforms/your-platform/
+├── platform.json
+└── skills/
+    └── your-platform-patterns/
+        ├── SKILL.md
+        └── patterns.md
 ```
 
-### Component Types
-
-| Component | Invocation | Context | Use Case |
-|-----------|------------|---------|----------|
-| **Subagents** | Automatic/delegated | Separate | Delegate specialized tasks |
-| **Skills** | Automatic (model) | Shared | Teach patterns and knowledge |
-| **Commands** | Explicit (`/cmd`) | Shared | Frequently used prompts |
-| **Hooks** | Event-based | N/A | Enforce rules, automation |
-
-### File Formats
-
-**Subagent** (`.claude/agents/{name}.md`):
-```yaml
----
-name: developer
-description: When to invoke this subagent
-tools: Read, Edit, Write, Bash
-model: sonnet
-skills: skill1, skill2
----
-
-System prompt content here...
+2. Define `platform.json`:
+```json
+{
+  "name": "your-platform",
+  "displayName": "Your Platform",
+  "commands": {
+    "build": "your-build-command",
+    "test": "your-test-command"
+  },
+  "conventions": {
+    "testNaming": "your-test-naming-pattern"
+  }
+}
 ```
 
-**Skill** (`.claude/skills/{name}/SKILL.md`):
-```yaml
----
-name: skill-name
-description: What this skill teaches and when to use it
----
+3. Create platform-specific skills with domain knowledge.
 
-# Skill content with patterns and guidance...
-```
+## Anthropic Best Practices
 
-**Command** (`.claude/commands/{name}.md`):
-```yaml
----
-description: What this command does
-argument-hint: [args]
-allowed-tools: Tool1, Tool2
----
+This workflow implements best practices from Anthropic's engineering blog:
 
-Prompt template with $ARGUMENTS placeholder...
-```
-
----
-
-## Workflow Execution
-
-### Agent Hierarchy
-
-```
-ORCHESTRATOR (Main Claude)
-    │
-    ├── analyst     → User stories & acceptance criteria
-    ├── architect   → Technical design
-    ├── developer   → TDD implementation
-    ├── tester      → Verification
-    ├── reviewer    → Code review
-    ├── security    → Security audit (if flagged)
-    └── devops      → Infrastructure (if needed)
-```
-
-### Quality Gates
-
-| Gate | When | Checks |
-|------|------|--------|
-| G1 | Pre-Implementation | Design complete, AC clear |
-| G2 | Post-Implementation | `dotnet build` + `dotnet test` pass |
-| G3 | Coverage | Meets threshold (70-90%) |
-| G4 | Security | OWASP Top 10 compliance |
-
-### Escalation Triggers
-
-- 5 stories completed → checkpoint review
-- 3+ failed attempts → escalate blocker
-- Security issue → immediate escalation
-
----
-
-## Safety Features
-
-Configured in `settings.json`:
-
-- **PreToolUse Hook**: Blocks dangerous operations (`rm -rf`, `DROP TABLE`, force push)
-- **PostToolUse Hook**: Audit logs all tool usage
-- **Protected Files**: `.env`, credentials, secrets cannot be modified
-- **Confirmation Required**: `git push`, migrations, deployments
-
----
-
-## Installation
-
-1. Copy the workflow's `.claude/` directory to your project root
-2. Ensure Python 3 is available for hooks
-3. Use slash commands or natural language to activate
-
-```bash
-# Example
-cp -r dotnet/multi-agent-autonomous-workflow/.claude ./
-
-# Then in Claude Code:
-/workflow Implement feature X
-```
-
----
-
-## Creating New Workflows
-
-### Directory Structure
-
-```
-{platform}/
-└── {workflow-name}/
-    └── .claude/
-        ├── settings.json
-        ├── agents/
-        ├── commands/
-        ├── skills/
-        └── hooks/
-```
-
-### Checklist
-
-- [ ] Subagents with proper YAML frontmatter (`name`, `description`, `tools`)
-- [ ] Skills with SKILL.md and supporting files (progressive disclosure)
-- [ ] Slash commands for common operations
-- [ ] Safety hooks in settings.json
-- [ ] Quality gates appropriate to tech stack
-
----
+- **State Persistence**: Track workflow state for session recovery
+- **Checkpoints**: Human review at 5-story intervals
+- **Fail-First Verification**: Stories must pass all checks before completion
+- **Iteration Loops**: Retry up to 3 times before escalating
+- **Context Management**: Progressive disclosure, drop completed details
 
 ## Resources
 
+- [Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+- [Building Agents with the Claude Agent SDK](https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk)
 - [Claude Code Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
-- [Building Agents with Claude Agent SDK](https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk)
-- [Agent Skills Documentation](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)
-- [Claude Code Docs](https://code.claude.com/docs)
-
----
 
 ## License
 
 MIT
-
----
-
-*Built for autonomous software development with Claude Code*

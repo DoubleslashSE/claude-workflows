@@ -1,0 +1,115 @@
+{
+  "$schema": "../platform-schema.json",
+  "name": "dotnet",
+  "displayName": ".NET with Clean Architecture",
+  "version": "1.0.0",
+
+  "commands": {
+    "build": "dotnet build",
+    "test": "dotnet test",
+    "testSingle": "dotnet test --filter \"FullyQualifiedName~{testName}\"",
+    "testProject": "dotnet test {project}",
+    "lint": "dotnet format --verify-no-changes",
+    "format": "dotnet format",
+    "coverage": "dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura",
+    "install": "dotnet restore",
+    "clean": "dotnet clean",
+    "watch": "dotnet watch run",
+    "migration-add": "dotnet ef migrations add {name}",
+    "migration-apply": "dotnet ef database update"
+  },
+
+  "conventions": {
+    "testNaming": "{Method}_{Scenario}_{ExpectedResult}",
+    "testFilePattern": "**/*.Tests.cs",
+    "sourceExtensions": [".cs", ".csproj", ".sln"],
+    "configFiles": ["appsettings.json", "appsettings.*.json", "*.csproj"],
+    "entryPoints": ["Program.cs", "Startup.cs"],
+    "commitFormat": "type: description",
+    "branchFormat": "feature/{storyId}-{description}"
+  },
+
+  "qualityGates": {
+    "coverageThresholds": {
+      "S": 70,
+      "M": 80,
+      "L": 85,
+      "XL": 90
+    },
+    "requiredChecks": ["build", "test"]
+  },
+
+  "patterns": {
+    "entity": "src/Core/Entities/{Entity}.cs",
+    "valueObject": "src/Core/ValueObjects/{Name}.cs",
+    "interface": "src/Core/Interfaces/I{Name}.cs",
+    "command": "src/Application/Commands/{Entity}/{Action}{Entity}Command.cs",
+    "commandHandler": "src/Application/Commands/{Entity}/{Action}{Entity}CommandHandler.cs",
+    "query": "src/Application/Queries/{Entity}/{Action}{Entity}Query.cs",
+    "queryHandler": "src/Application/Queries/{Entity}/{Action}{Entity}QueryHandler.cs",
+    "validator": "src/Application/Commands/{Entity}/{Action}{Entity}CommandValidator.cs",
+    "repository": "src/Infrastructure/Persistence/Repositories/{Entity}Repository.cs",
+    "controller": "src/Api/Controllers/{Entity}Controller.cs",
+    "dto": "src/Api/Models/{Entity}Dto.cs",
+    "unitTest": "tests/Application.Tests/{Feature}/{TestClass}Tests.cs",
+    "integrationTest": "tests/Integration.Tests/{Feature}/{TestClass}IntegrationTests.cs"
+  },
+
+  "antiPatterns": [
+    {
+      "name": "GenericException",
+      "pattern": "catch\\s*\\(\\s*Exception\\s+(\\w+)?\\s*\\)\\s*\\{[^}]*(?!throw)",
+      "reason": "Catching generic Exception without re-throwing hides errors"
+    },
+    {
+      "name": "AsyncVoid",
+      "pattern": "async\\s+void\\s+(?!On|Handle)",
+      "reason": "async void methods cannot be awaited and exceptions are unobserved"
+    },
+    {
+      "name": "TaskResult",
+      "pattern": "\\.Result\\s*[;\\)]|\\.Wait\\s*\\(",
+      "reason": "Task.Result and Task.Wait() can cause deadlocks"
+    },
+    {
+      "name": "SqlConcatenation",
+      "pattern": "\"\\s*SELECT.*\\+.*\"",
+      "reason": "String concatenation in SQL is vulnerable to injection"
+    }
+  ],
+
+  "skills": [
+    "dotnet-clean-architecture",
+    "tdd-workflow"
+  ],
+
+  "projectStructure": {
+    "description": "Clean Architecture with CQRS",
+    "layers": [
+      {
+        "name": "Core",
+        "path": "src/Core",
+        "dependencies": [],
+        "contains": ["Entities", "ValueObjects", "Interfaces", "Enums", "Exceptions"]
+      },
+      {
+        "name": "Application",
+        "path": "src/Application",
+        "dependencies": ["Core"],
+        "contains": ["Commands", "Queries", "Behaviors", "Validators", "DTOs"]
+      },
+      {
+        "name": "Infrastructure",
+        "path": "src/Infrastructure",
+        "dependencies": ["Core", "Application"],
+        "contains": ["Persistence", "Services", "Identity", "Logging"]
+      },
+      {
+        "name": "Api",
+        "path": "src/Api",
+        "dependencies": ["Application", "Infrastructure"],
+        "contains": ["Controllers", "Middleware", "Filters", "Models"]
+      }
+    ]
+  }
+}
