@@ -18,8 +18,14 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 
-STATE_FILE = Path('.claude/workflow-state.json')
-PROGRESS_FILE = Path('.claude/claude-progress.txt')
+# Resolve paths relative to this script's location, not working directory
+# This ensures the workflow works regardless of where Claude runs from
+SCRIPT_DIR = Path(__file__).parent.resolve()
+CLAUDE_DIR = SCRIPT_DIR.parent  # .claude directory
+PROJECT_ROOT = CLAUDE_DIR.parent  # Project root containing .claude
+
+STATE_FILE = CLAUDE_DIR / 'workflow-state.json'
+PROGRESS_FILE = CLAUDE_DIR / 'claude-progress.txt'
 
 
 def generate_workflow_id() -> str:
@@ -122,7 +128,7 @@ def clear_progress() -> bool:
     try:
         if PROGRESS_FILE.exists():
             # Archive to progress.old before clearing
-            archive = Path('.claude/claude-progress.old')
+            archive = CLAUDE_DIR / 'claude-progress.old'
             PROGRESS_FILE.rename(archive)
         return True
     except IOError:
