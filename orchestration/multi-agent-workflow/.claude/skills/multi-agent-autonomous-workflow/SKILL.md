@@ -43,7 +43,7 @@ This workflow is designed for **long-running autonomous execution**. Like the Ra
 
 ## Phase 0: Setup & Platform Detection
 
-Before any work, set up the execution context.
+Before any work, set up the execution context. **This phase produces visible output.**
 
 ### Step 0.1: Session Recovery Check
 
@@ -61,35 +61,94 @@ If resuming, skip to the appropriate phase/story based on state.
 
 ### Step 0.2: Discover Available Platforms
 
-Scan `Workflows/platforms/` for all subdirectories containing `platform.json`:
+Scan `Workflows/platforms/` for all subdirectories containing `platform.json`.
 
-```
-For each directory in Workflows/platforms/:
-    Read platform.json
-    Extract detection.markers, detection.matchMode, detection.priority
+**Output the discovery:**
+
+```markdown
+## Platform Discovery
+
+Scanning Workflows/platforms/ for available platforms...
+
+| Platform | Markers | Match Mode | Priority |
+|----------|---------|------------|----------|
+| dotnet | *.sln, *.csproj | any | 100 |
+| typescript | package.json, tsconfig.json | all | 90 |
+
+Found {n} platform configurations.
 ```
 
 ### Step 0.3: Match Platform to Codebase
 
-```
-For each platform:
-    Check if marker files exist in target project
-    If matchMode == "any": match if ANY marker exists
-    If matchMode == "all": match only if ALL markers exist
+Check each platform's markers against the target project.
 
-Select platform with highest priority among matches
+**Output the matching process:**
+
+```markdown
+## Platform Detection
+
+Scanning codebase for platform markers...
+
+| Platform | Markers Found | Match Result |
+|----------|---------------|--------------|
+| dotnet | MyApp.sln, MyApp.csproj | MATCH |
+| typescript | (none) | NO MATCH |
+
+**Selected Platform:** dotnet (priority: 100)
+**Reason:** Found *.sln file in project root
 ```
 
 ### Step 0.4: Load Platform Configuration
 
-From selected `platform.json`, extract and cache:
-- `commands` (build, test, lint, coverage)
-- `patterns` (file locations)
-- `conventions` (naming, commits)
-- `antiPatterns` (code smells)
-- `qualityGates` (coverage thresholds)
-- `projectStructure` (architecture layers)
-- `skills` (platform-specific skills to load)
+From selected `platform.json`, extract and cache configuration.
+
+**Output the loaded configuration:**
+
+```markdown
+## Platform Configuration Loaded
+
+**Platform:** .NET with Clean Architecture (v1.0.0)
+
+### Commands
+| Action | Command |
+|--------|---------|
+| Build | `dotnet build` |
+| Test | `dotnet test` |
+| Lint | `dotnet format --verify-no-changes` |
+| Coverage | `dotnet test /p:CollectCoverage=true` |
+
+### Project Structure
+Clean Architecture with CQRS
+
+| Layer | Path | Contains |
+|-------|------|----------|
+| Core | src/Core | Entities, ValueObjects, Interfaces |
+| Application | src/Application | Commands, Queries, Handlers |
+| Infrastructure | src/Infrastructure | Persistence, Services |
+| Api | src/Api | Controllers, Middleware |
+
+### Skills Loaded
+- dotnet-clean-architecture
+- tdd-workflow
+
+### Conventions
+- Test naming: `{Method}_{Scenario}_{ExpectedResult}`
+- Commit format: `type: description`
+- Branch format: `feature/{storyId}-{description}`
+
+---
+Platform detection complete. Proceeding with workflow.
+```
+
+### Step 0.5: Load Platform Skills
+
+For each skill in `platform.json.skills[]`, read the skill file:
+
+```
+Read: Workflows/platforms/{platform}/skills/{skill}/SKILL.md
+```
+
+The loaded skills provide platform-specific patterns and best practices that guide implementation.
 
 ---
 
