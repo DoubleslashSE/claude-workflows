@@ -87,6 +87,7 @@
 
   "skills": [
     "dotnet-clean-architecture",
+    "dotnet-best-practices",
     "tdd-workflow"
   ],
 
