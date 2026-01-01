@@ -252,6 +252,8 @@ If not complete, iterate with architect.
 
 This is the main execution loop. **Continue until ALL stories are completed.**
 
+**CRITICAL: Every iteration MUST run build and tests before exiting the loop.**
+
 ```python
 # MIDDLE LOOP: Iterate over stories
 while get_incomplete_stories():
@@ -268,20 +270,28 @@ while get_incomplete_stories():
         update_status(story, 'in_progress')
         dev_result = invoke_developer(story, iteration, previous_failures)
 
-        if dev_result.build_failed:
-            previous_failures.append(dev_result.error)
-            continue  # Retry development
+        # === MANDATORY BUILD VERIFICATION ===
+        build_result = run_platform_command('build')  # e.g., dotnet build / npm run build
+        if build_result.failed:
+            previous_failures.append(f"Build failed: {build_result.error}")
+            continue  # Retry development - DO NOT EXIT LOOP
 
-        # === TEST ===
+        # === MANDATORY TEST VERIFICATION ===
+        test_result = run_platform_command('test')  # e.g., dotnet test / npm test
+        if test_result.failed:
+            previous_failures.append(f"Tests failed: {test_result.error}")
+            continue  # Retry development - DO NOT EXIT LOOP
+
+        # === TESTER AGENT VERIFICATION ===
         update_status(story, 'testing')
-        test_result = invoke_tester(story, dev_result.files)
+        tester_result = invoke_tester(story, dev_result.files)
 
-        if test_result == 'FAIL':
-            previous_failures.append(test_result.issues)
+        if tester_result == 'FAIL':
+            previous_failures.append(tester_result.issues)
             continue  # Loop back to developer
 
         mark_verification(story, 'testsPass', True)
-        mark_verification(story, 'coverageMet', test_result.coverage_ok)
+        mark_verification(story, 'coverageMet', tester_result.coverage_ok)
 
         # === REVIEW ===
         update_status(story, 'review')
@@ -303,6 +313,14 @@ while get_incomplete_stories():
 
             mark_verification(story, 'securityCleared', True)
 
+        # === FINAL VERIFICATION BEFORE COMPLETING STORY ===
+        final_build = run_platform_command('build')
+        final_test = run_platform_command('test')
+
+        if final_build.failed or final_test.failed:
+            previous_failures.append("Final verification failed")
+            continue  # DO NOT COMPLETE - retry
+
         # === STORY COMPLETE ===
         update_status(story, 'completed')
         commit_story_changes(story)
@@ -312,6 +330,39 @@ while get_incomplete_stories():
         # Max retries exceeded - escalate
         escalate_blocker(story, previous_failures)
 ```
+
+### Mandatory Verification Commands
+
+**Before exiting ANY loop iteration, run these platform commands:**
+
+```bash
+# Using platform.json commands
+{platform.commands.build}    # Must pass
+{platform.commands.test}     # Must pass
+```
+
+**Example for .NET:**
+```bash
+dotnet build
+dotnet test
+```
+
+**Example for TypeScript:**
+```bash
+npm run build
+npm test
+```
+
+**If either command fails, DO NOT:**
+- Exit the inner loop
+- Mark the story as completed
+- Proceed to the next story
+- Create a PR
+
+**Instead:**
+- Log the failure
+- Add to `previous_failures` context
+- Retry with the developer agent
 
 ### Retry Context Template
 
@@ -372,7 +423,55 @@ python .claude/core/state.py status
 
 All stories must have status `completed` with all verification checks passed.
 
-### Step 3.2: Invoke DevOps (if needed)
+### Step 3.2: Final Build & Test Verification (REQUIRED)
+
+**Before creating a PR, run a complete build and test cycle:**
+
+```bash
+# Run full build
+{platform.commands.build}
+
+# Run all tests
+{platform.commands.test}
+
+# Run linting (if available)
+{platform.commands.lint}
+```
+
+**Example for .NET:**
+```bash
+dotnet build
+dotnet test
+dotnet format --verify-no-changes
+```
+
+**Example for TypeScript:**
+```bash
+npm run build
+npm test
+npm run lint
+```
+
+**Output verification results:**
+
+```markdown
+## Pre-PR Verification
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Build | `dotnet build` | ✅ PASS |
+| Tests | `dotnet test` | ✅ PASS (47 tests) |
+| Lint | `dotnet format --verify-no-changes` | ✅ PASS |
+
+All verification checks passed. Proceeding with PR creation.
+```
+
+**If ANY check fails:**
+- DO NOT create the PR
+- Return to Phase 2 to fix the issues
+- Re-run verification after fixes
+
+### Step 3.3: Invoke DevOps (if needed)
 
 If deployment configuration is required:
 ```markdown
@@ -383,7 +482,7 @@ If deployment configuration is required:
 Create/update deployment configuration for implemented features.
 ```
 
-### Step 3.3: Create Pull Request (REQUIRED)
+### Step 3.4: Create Pull Request (REQUIRED)
 
 ```bash
 # Ensure clean working state
@@ -408,7 +507,12 @@ gh pr create --title "[Feature] {Goal Summary}" --body "$(cat <<'EOF'
 - All {test_count} tests passing
 - Coverage thresholds met
 
-## Verification
+## Pre-PR Verification
+- [x] Build passes
+- [x] All tests pass
+- [x] Lint checks pass
+
+## Agent Verification
 - [x] Code review approved by reviewer agent
 - [x] Security review passed (if applicable)
 - [x] All acceptance criteria verified by tester agent
@@ -424,13 +528,13 @@ EOF
 )"
 ```
 
-### Step 3.4: Complete Workflow
+### Step 3.5: Complete Workflow
 
 ```bash
 python .claude/core/state.py complete
 ```
 
-### Step 3.5: Output Completion Marker
+### Step 3.6: Output Completion Marker
 
 ```markdown
 ## WORKFLOW_COMPLETE
@@ -546,9 +650,30 @@ Drop from context:
 | Gate | When | Check | On Fail |
 |------|------|-------|---------|
 | G1 | Before dev | Design complete, AC clear | Clarify with analyst/architect |
-| G2 | After dev | Build passes, tests pass | Retry developer with context |
-| G3 | After test | Coverage threshold met | Add tests, retry |
-| G4 | If security | Security scan passes | Remediate, retry |
+| G2 | After dev | `{platform.commands.build}` passes | Retry developer with build error context |
+| G3 | After build | `{platform.commands.test}` passes | Retry developer with test failure context |
+| G4 | After test | Coverage threshold met | Add tests, retry |
+| G5 | Before story complete | Final build + test verification | DO NOT complete story, retry |
+| G6 | If security | Security scan passes | Remediate, retry |
+| G7 | Before PR | Full build + test + lint passes | DO NOT create PR, return to Phase 2 |
+
+### Gate Verification Commands
+
+```bash
+# G2: Build verification
+{platform.commands.build}
+
+# G3: Test verification
+{platform.commands.test}
+
+# G5: Final story verification (before marking complete)
+{platform.commands.build} && {platform.commands.test}
+
+# G7: Pre-PR verification (all checks)
+{platform.commands.build} && {platform.commands.test} && {platform.commands.lint}
+```
+
+**IMPORTANT:** Gates G2, G3, G5, and G7 are MANDATORY. The workflow MUST NOT proceed if these gates fail.
 
 ---
 
