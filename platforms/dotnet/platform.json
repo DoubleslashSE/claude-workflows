@@ -4,6 +4,13 @@
   "displayName": ".NET with Clean Architecture",
   "version": "1.0.0",
 
+  "detection": {
+    "markers": ["*.sln", "*.csproj"],
+    "matchMode": "any",
+    "priority": 100,
+    "description": "Detected by .sln or .csproj files"
+  },
+
   "commands": {
     "build": "dotnet build",
     "test": "dotnet test",

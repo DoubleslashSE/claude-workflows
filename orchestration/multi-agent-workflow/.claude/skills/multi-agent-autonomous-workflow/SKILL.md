@@ -35,19 +35,98 @@ This workflow is designed for **extended autonomous execution**. The key princip
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Platform Detection
+## Automatic Platform Detection (REQUIRED - Phase 0)
 
-Before starting, detect the project platform:
+Before starting any workflow, you MUST detect and load the appropriate platform configuration. Platforms are discovered dynamically - no hardcoded file types.
 
-```bash
-# Check for platform.json
-cat platform.json 2>/dev/null || cat .claude/platform.json 2>/dev/null
+### Step 1: Discover Available Platforms
 
-# Or detect from project files
-ls *.csproj *.sln package.json go.mod pyproject.toml Cargo.toml 2>/dev/null
+Scan the `Workflows/platforms/` directory to find all available platforms:
+
+```
+Workflows/platforms/
+├── dotnet/platform.json
+├── typescript/platform.json
+├── python/platform.json      (if exists)
+├── go/platform.json          (if exists)
+└── {any-new-platform}/platform.json
 ```
 
-Store the detected platform for use by subagents.
+For each subdirectory, read its `platform.json` to get detection criteria.
+
+### Step 2: Read Detection Criteria
+
+Each `platform.json` contains a `detection` section:
+
+```json
+{
+  "detection": {
+    "markers": ["*.sln", "*.csproj"],  // Files/globs to look for
+    "matchMode": "any",                 // "any" = at least one, "all" = all required
+    "priority": 100,                    // Higher priority wins on conflict
+    "description": "Detected by..."     // Human-readable explanation
+  }
+}
+```
+
+### Step 3: Match Against Target Codebase
+
+For each discovered platform:
+1. Check if marker files exist in the target project
+2. Apply `matchMode`:
+   - `"any"`: Platform matches if ANY marker exists
+   - `"all"`: Platform matches only if ALL markers exist
+3. Collect all matching platforms
+
+### Step 4: Select Best Match
+
+If multiple platforms match, select by highest `priority` value.
+
+If no platforms match:
+1. Ask the user which platform to use
+2. Or infer from the goal description
+3. Fall back to generic commands: `make build`, `make test`
+
+### Step 5: Load Platform Configuration
+
+From the selected `platform.json`, extract:
+- `commands` - Build, test, lint commands
+- `patterns` - File location patterns
+- `conventions` - Naming and formatting conventions
+- `antiPatterns` - Code patterns to avoid
+- `qualityGates` - Coverage thresholds
+- `projectStructure` - Architecture layers
+- `skills` - Platform-specific skills to load
+
+### Step 6: Load Platform Skills
+
+For each skill listed in `platform.json.skills[]`:
+```
+Read: Workflows/platforms/{platform}/skills/{skill}/SKILL.md
+```
+
+### Platform Context Template
+
+When invoking ANY subagent, include this context block:
+
+```markdown
+## Platform Context
+**Platform:** {platform.displayName}
+**Build:** {platform.commands.build}
+**Test:** {platform.commands.test}
+**Lint:** {platform.commands.lint}
+
+**Project Structure:**
+{platform.projectStructure.description}
+
+**Conventions:**
+- Test naming: {platform.conventions.testNaming}
+- Commit format: {platform.conventions.commitFormat}
+- Branch format: {platform.conventions.branchFormat}
+
+**Anti-Patterns to Avoid:**
+{List from platform.antiPatterns}
+```
 
 ## Architecture
 
@@ -164,22 +243,15 @@ for story in stories:
 
 ### Platform-Specific Build/Test
 
-Use platform.json commands or auto-detect:
+Use commands from the detected platform.json:
 
-```bash
-# Get build command from platform config
-BUILD_CMD=$(python .claude/core/platform.py get-command build 2>/dev/null || echo "")
-
-# Or detect
-if [ -z "$BUILD_CMD" ]; then
-  if [ -f "*.sln" ]; then BUILD_CMD="dotnet build"
-  elif [ -f "package.json" ]; then BUILD_CMD="npm run build"
-  elif [ -f "go.mod" ]; then BUILD_CMD="go build ./..."
-  fi
-fi
-
-$BUILD_CMD
 ```
+Build: {platform.commands.build}
+Test:  {platform.commands.test}
+Lint:  {platform.commands.lint}
+```
+
+The platform is auto-detected in Phase 0. All subagents receive platform context with the correct commands.
 
 ## Fail-First Verification Pattern
 
@@ -202,18 +274,14 @@ Stories cannot be marked `completed` until reaching `verified` status with all c
 
 ## Coverage Thresholds by Story Size
 
-Get from platform.json or use defaults:
+Thresholds are defined in `platform.json.qualityGates.coverageThresholds`:
 
-| Size | Coverage |
-|------|----------|
-| S | 70% |
-| M | 80% |
-| L | 85% |
-| XL | 90% |
-
-```bash
-python .claude/core/platform.py get-threshold M
-```
+| Size | Default | Source |
+|------|---------|--------|
+| S | 70% | `{platform.qualityGates.coverageThresholds.S}` |
+| M | 80% | `{platform.qualityGates.coverageThresholds.M}` |
+| L | 85% | `{platform.qualityGates.coverageThresholds.L}` |
+| XL | 90% | `{platform.qualityGates.coverageThresholds.XL}` |
 
 ## Iteration Control
 

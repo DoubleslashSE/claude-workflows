@@ -2,14 +2,137 @@
 
 Detailed reference for the multi-agent autonomous workflow with iteration patterns.
 
+## Platform Auto-Detection (Phase 0)
+
+Before invoking any subagent, dynamically discover and load the platform configuration.
+
+### Step 1: Discover Available Platforms
+
+Scan `Workflows/platforms/` directory for all subdirectories containing `platform.json`:
+
+```
+platforms/
+├── dotnet/platform.json
+├── typescript/platform.json
+└── {any-future-platform}/platform.json
+```
+
+### Step 2: Read Detection Criteria from Each Platform
+
+Each `platform.json` contains a `detection` section:
+
+```json
+{
+  "name": "dotnet",
+  "detection": {
+    "markers": ["*.sln", "*.csproj"],
+    "matchMode": "any",    // "any" = at least one marker, "all" = all markers required
+    "priority": 100,       // Higher wins on conflict
+    "description": "Detected by .sln or .csproj files"
+  }
+}
+```
+
+### Step 3: Match Platforms Against Target Codebase
+
+For each discovered platform:
+1. Check if its marker files exist in the target project root
+2. Apply `matchMode` logic:
+   - `"any"`: Match if ANY marker file exists
+   - `"all"`: Match only if ALL marker files exist
+3. Collect all matching platforms with their priorities
+
+### Step 4: Select Best Match
+
+```
+If matches.length == 0:
+    → Ask user or infer from goal
+If matches.length == 1:
+    → Use that platform
+If matches.length > 1:
+    → Select platform with highest priority
+```
+
+### Step 5: Load Selected Platform
+
+From the winning `platform.json`, extract:
+- `commands` - Build, test, lint, coverage commands
+- `conventions` - Naming and formatting standards
+- `patterns` - File location templates
+- `antiPatterns` - Code patterns to avoid
+- `qualityGates` - Coverage thresholds by story size
+- `projectStructure` - Architecture layers and dependencies
+- `skills` - Additional skills to load
+
+### Step 6: Load Platform Skills
+
+For each skill in `platform.json.skills[]`:
+```
+Read: Workflows/platforms/{platform}/skills/{skill}/SKILL.md
+```
+
+### Step 7: Build Platform Context Block
+
+Create this context block to inject into ALL subagent prompts:
+
+```markdown
+## Platform Context
+
+**Platform:** {displayName} (v{version})
+
+### Commands
+| Action | Command |
+|--------|---------|
+| Build | `{commands.build}` |
+| Test | `{commands.test}` |
+| Lint | `{commands.lint}` |
+| Coverage | `{commands.coverage}` |
+
+### Project Structure
+{projectStructure.description}
+
+**Layers:**
+{For each layer in projectStructure.layers}
+- **{layer.name}** (`{layer.path}`) - Contains: {layer.contains}
+  - Dependencies: {layer.dependencies}
+
+### File Patterns
+| Type | Pattern |
+|------|---------|
+{For each pattern in patterns}
+| {patternName} | `{patternPath}` |
+
+### Conventions
+- **Test naming:** {conventions.testNaming}
+- **Commit format:** {conventions.commitFormat}
+- **Branch format:** {conventions.branchFormat}
+
+### Anti-Patterns to Avoid
+{For each ap in antiPatterns}
+- **{ap.name}:** {ap.reason}
+
+### Quality Thresholds
+| Story Size | Coverage |
+|------------|----------|
+| S | {qualityGates.coverageThresholds.S}% |
+| M | {qualityGates.coverageThresholds.M}% |
+| L | {qualityGates.coverageThresholds.L}% |
+| XL | {qualityGates.coverageThresholds.XL}% |
+```
+
+---
+
 ## Subagent Invocation Patterns
+
+**IMPORTANT:** Every subagent invocation MUST include the Platform Context block (from Phase 0) at the start.
 
 ### Analyst (Phase 1)
 ```markdown
 ## Task for Analyst Subagent
 
+{INCLUDE PLATFORM CONTEXT BLOCK HERE}
+
 **Goal:** [User's goal description]
-**Platform:** [Detected from platform.json or project files]
 
 **Requirements:**
 1. Break down the goal into discrete user stories
@@ -17,6 +140,7 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 3. Estimate size (S/M/L/XL) for each story
 4. Flag security-sensitive stories
 5. Identify dependencies between stories
+6. Consider platform-specific patterns and conventions
 
 **Expected Output Format:**
 - List of user stories with acceptance criteria
@@ -28,25 +152,29 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 ```markdown
 ## Task for Architect Subagent
 
+{INCLUDE PLATFORM CONTEXT BLOCK HERE}
+
 **Stories:** [Stories from analyst]
-**Platform:** [Platform name from platform.json]
-**Constraints:** Follow project structure and patterns defined in platform.json
 
 **Requirements:**
-1. Design component structure for each story
-2. Document key architectural decisions (ADRs)
-3. Identify file changes per story
-4. Flag technical risks and mitigations
+1. Design component structure following platform.projectStructure
+2. Use file patterns from platform.patterns
+3. Document key architectural decisions (ADRs)
+4. Identify file changes per story using platform conventions
+5. Flag technical risks and mitigations
+6. Avoid platform.antiPatterns
 
 **Expected Output Format:**
 - Technical design per story
-- File change list with purposes
+- File change list with purposes (using platform.patterns)
 - Architecture decisions with rationale
 ```
 
 ### Developer (Phase 2 - with Retry Context)
 ```markdown
 ## Task for Developer Subagent
+
+{INCLUDE PLATFORM CONTEXT BLOCK HERE}
 
 **Story:** [Story title]
 **Acceptance Criteria:**
@@ -61,13 +189,11 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 
 **Requirements:**
 1. Follow TDD: RED → GREEN → REFACTOR
-2. Run build and test commands before completion
-3. Return structured implementation log
-4. If build/tests fail, analyze and retry (up to 3 times)
-
-**Build/Test Commands:** (from platform.json or auto-detect)
-- Build: $(platform build)
-- Test: $(platform test)
+2. Use platform.commands.build and platform.commands.test
+3. Follow platform.conventions for naming
+4. Place files according to platform.patterns
+5. Avoid platform.antiPatterns
+6. Return structured implementation log
 
 **Expected Output Format:**
 - Implementation log with test results
@@ -80,6 +206,8 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 ```markdown
 ## Task for Tester Subagent
 
+{INCLUDE PLATFORM CONTEXT BLOCK HERE}
+
 **Story:** [Story title]
 **Acceptance Criteria:**
 - AC1: [Criterion]
@@ -89,20 +217,17 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 **Files Changed:** [List from developer]
 
 **Requirements:**
-1. Run tests and verify all pass
-2. Check coverage meets threshold for story size
-3. Verify each acceptance criterion has tests
-4. Add edge case tests if missing
-5. Return PASS or FAIL with specific issues
-
-**Test Command:** $(platform test)
-**Coverage Command:** $(platform coverage)
-**Threshold:** $(platform get-threshold [S/M/L/XL])
+1. Run tests using platform.commands.test
+2. Check coverage using platform.commands.coverage
+3. Verify coverage meets platform.qualityGates.coverageThresholds for story size
+4. Verify each acceptance criterion has tests
+5. Follow platform.conventions.testNaming for new tests
+6. Return PASS or FAIL with specific issues
 
 **Expected Output Format:**
 - Verdict: PASS or FAIL
 - Acceptance criteria status (each one)
-- Coverage analysis
+- Coverage analysis vs threshold
 - Issues found (if FAIL): specific file:line references
 ```
 
@@ -110,20 +235,24 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 ```markdown
 ## Task for Reviewer Subagent
 
+{INCLUDE PLATFORM CONTEXT BLOCK HERE}
+
 **Story:** [Story title]
 **Files Changed:** [List of files]
 **Implementation Summary:** [Brief description]
 
 **Requirements:**
-1. Check architecture compliance per project structure
-2. Verify code quality and naming conventions
-3. Check for anti-patterns (from platform.json)
-4. Identify security considerations
-5. Return APPROVED or CHANGES_REQUESTED
+1. Verify files follow platform.patterns locations
+2. Check architecture compliance per platform.projectStructure
+3. Verify naming follows platform.conventions
+4. Scan for platform.antiPatterns violations
+5. Identify security considerations
+6. Return APPROVED or CHANGES_REQUESTED
 
 **Expected Output Format:**
 - Verdict: APPROVED or CHANGES_REQUESTED
-- Architecture compliance: PASS/FAIL
+- Architecture compliance: PASS/FAIL (vs platform.projectStructure)
+- Anti-pattern violations found
 - Code quality findings
 - Required changes (if any): specific file:line with fix
 ```
@@ -131,6 +260,8 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 ### Security (Phase 2 - If Flagged)
 ```markdown
 ## Task for Security Subagent
+
+{INCLUDE PLATFORM CONTEXT BLOCK HERE}
 
 **Story:** [Story title]
 **Files Changed:** [List of security-sensitive files]
@@ -141,7 +272,8 @@ Detailed reference for the multi-agent autonomous workflow with iteration patter
 2. Review authentication/authorization logic
 3. Check input validation and output encoding
 4. Verify secure data handling
-5. Return SECURE or NEEDS_REMEDIATION
+5. Check for security-related platform.antiPatterns
+6. Return SECURE or NEEDS_REMEDIATION
 
 **Expected Output Format:**
 - Verdict: SECURE or NEEDS_REMEDIATION

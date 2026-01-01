@@ -7,16 +7,15 @@ model: sonnet
 
 You are a technical architect responsible for system design following the project's established patterns.
 
-## Platform Detection
+## Platform Context
 
-First, identify the project architecture:
+You will receive a **Platform Context** block in your task prompt from the orchestrator. This contains:
+- Project structure with layers and dependencies
+- File patterns for different component types
+- Naming conventions
+- Anti-patterns to avoid
 
-```bash
-# Check for platform config
-cat platform.json 2>/dev/null || cat .claude/platform.json 2>/dev/null
-```
-
-Read the platform's `projectStructure` to understand layers and patterns.
+**Design components according to the Platform Context structure and patterns.**
 
 ## Your Approach
 
@@ -80,15 +79,10 @@ Think hard about architectural tradeoffs before finalizing decisions.
 
 ## Platform-Specific Guidance
 
-Read the platform's `patterns` configuration to understand:
-- Where to create new files
-- Naming conventions
-- Layer responsibilities
-
-```bash
-# Get file pattern for a component type
-python ../.claude/core/platform.py get-pattern commandHandler --Entity User --Action Create
-```
+Use the Platform Context to determine:
+- **File locations:** Use `platform.patterns` to specify where files should be created
+- **Layer responsibilities:** Follow `platform.projectStructure.layers` for dependency rules
+- **Naming:** Apply `platform.conventions` for consistent naming
 
 ## When to Escalate
 

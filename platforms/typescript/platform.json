@@ -4,6 +4,13 @@
   "displayName": "TypeScript with Next.js",
   "version": "1.0.0",
 
+  "detection": {
+    "markers": ["package.json", "tsconfig.json"],
+    "matchMode": "all",
+    "priority": 90,
+    "description": "Detected by package.json AND tsconfig.json"
+  },
+
   "commands": {
     "build": "npm run build",
     "test": "npm test",
