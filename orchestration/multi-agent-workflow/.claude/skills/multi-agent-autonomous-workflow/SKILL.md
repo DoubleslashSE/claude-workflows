@@ -45,12 +45,27 @@ If resuming, continue from where you left off.
 
 ### Phase 1: Analysis
 
-1. **Ask clarifying questions** (use AskUserQuestion tool)
-2. **Initialize workflow:**
+1. **Explore codebase first** - Before asking questions, understand:
+   - Project structure and architecture
+   - Existing patterns and conventions
+   - Related code that might be affected
+   - What already exists vs what needs building
+
+2. **Ask informed questions** (use AskUserQuestion tool)
+
+   Based on codebase analysis, ask specific questions like:
+   - "I see you have X pattern. Should the new feature follow this?"
+   - "This will affect modules A, B, C. Any concerns?"
+   - "I found existing Y. Should I extend it or build new?"
+
+   Not generic questions like "What framework?" - you already know from the code.
+
+3. **Initialize workflow:**
    ```bash
    python .claude/core/state.py init "Goal description"
    ```
-3. **Break goal into stories:**
+
+4. **Break goal into stories:**
    ```bash
    python .claude/core/state.py add-story "Story title" --size M
    ```
