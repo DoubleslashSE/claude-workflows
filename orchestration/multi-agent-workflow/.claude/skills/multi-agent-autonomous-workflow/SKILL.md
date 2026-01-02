@@ -882,6 +882,15 @@ python .claude/core/state.py trim-progress --lines 100
 python .claude/core/state.py mark-working-state
 python .claude/core/state.py rollback-to-checkpoint
 
+# User intervention
+python .claude/core/state.py await-user-fix <blocker_id> "description" [--check-command "cmd"]
+python .claude/core/state.py check-user-fix
+python .claude/core/state.py user-fix-complete [--notes "note"]
+python .claude/core/state.py resume-context
+
+# Dependency scanning
+python .claude/core/state.py scan-dependencies S1
+
 # Completion
 python .claude/core/state.py complete
 ```
@@ -1001,6 +1010,230 @@ When resuming:
 
 ---
 
+## User Intervention Patterns
+
+### Mid-Workflow User Intervention (await_user_fix)
+
+When the workflow encounters a blocker that **requires manual user action** (e.g., missing API keys, environment configuration, external service setup), use the `await_user_fix` pattern:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      MID-WORKFLOW USER INTERVENTION                              │
+│                                                                                  │
+│   1. Workflow encounters blocker requiring user action                          │
+│   2. Call await_user_fix() to pause workflow                                    │
+│   3. Stop hook allows exit with instructions for user                           │
+│   4. User fixes issue and signals completion                                    │
+│   5. Workflow resumes from where it left off                                    │
+│                                                                                  │
+│   WORKFLOW              USER                  WORKFLOW                          │
+│      │                   │                       │                              │
+│      ├──▶ await_user_fix │                       │                              │
+│      │   (exit allowed)  │                       │                              │
+│      │                   │                       │                              │
+│      │                   ├──▶ Fix issue          │                              │
+│      │                   │                       │                              │
+│      │                   ├──▶ user-fix-complete  │                              │
+│      │                   │                       │                              │
+│      │                   │    (restart claude)   │                              │
+│      │                   │        ──────────────▶├──▶ Resume workflow           │
+│      │                   │                       │                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Invoking User Intervention:**
+
+```bash
+# 1. Log the blocker first
+python .claude/core/state.py add-blocker "Stripe API key not configured in .env" --severity high
+
+# 2. Request user intervention with optional verification command
+python .claude/core/state.py await-user-fix 0 "Add Stripe API key to .env file" --check-command "dotnet build" --timeout 60
+
+# Output includes instructions for the user:
+# {
+#   "status": "awaiting_user",
+#   "description": "Add Stripe API key to .env file",
+#   "check_command": "dotnet build",
+#   "instructions": [
+#     "1. Fix the issue: Add Stripe API key to .env file",
+#     "2. Run verification: dotnet build",
+#     "3. Resume workflow: python .claude/core/state.py user-fix-complete"
+#   ]
+# }
+```
+
+**User Signals Fix Complete:**
+
+```bash
+# User runs this after fixing the issue
+python .claude/core/state.py user-fix-complete --notes "Added test API key from Stripe dashboard"
+```
+
+**Workflow Resumes:**
+
+On next session start, the workflow automatically detects the fix and continues:
+
+```bash
+# Session recovery detects resolved blocker
+python .claude/core/state.py recover
+
+# Get context for resuming
+python .claude/core/state.py resume-context
+```
+
+### Automated External Dependency Scanning
+
+**Before starting development** on each story, scan for external dependencies:
+
+```bash
+# Scan story for external dependency keywords
+python .claude/core/state.py scan-dependencies S1
+
+# Output:
+# Detected 2 external dependencies:
+#   [payment] payment_processing
+#     Keyword: stripe
+#     Mock: Use test/sandbox API keys or mock payment service
+#     Requires secrets: True
+#
+#   [email] email_service
+#     Keyword: sendgrid
+#     Mock: Use local mailhog/papercut or mock email sender
+#     Requires secrets: True
+```
+
+**Dependency Categories and Mock Strategies:**
+
+| Type | Keywords | Mock Strategy |
+|------|----------|---------------|
+| **payment** | stripe, paypal, braintree | Test/sandbox API keys |
+| **email** | sendgrid, mailgun, smtp | Local mailhog/papercut |
+| **oauth** | oauth, google auth, facebook login | Test OAuth credentials |
+| **storage** | s3, azure blob, cloudinary | Local minio/azurite |
+| **sms** | twilio, nexmo, vonage | SMS service test mode |
+| **ai_ml** | openai, gpt-4, anthropic | Recorded responses |
+| **database_cloud** | rds, cosmosdb, atlas | Local database container |
+| **messaging** | rabbitmq, kafka, azure service bus | Local container |
+
+**When Dependencies Are Detected:**
+
+```markdown
+## External Dependencies Detected for Story {story_id}
+
+| Type | Category | Requires Secrets |
+|------|----------|------------------|
+| {type} | {category} | {yes/no} |
+
+### Mock Strategy for Development/Testing:
+{For each dependency:}
+- **{type}:** {mock_strategy}
+
+### If Secrets Required:
+1. Check if test credentials exist in environment
+2. If not available: Call await-user-fix to request setup
+3. Never hardcode credentials in code
+```
+
+### Resume-After-Blocker Protocol
+
+When resuming after a user-fixed blocker, follow this protocol:
+
+```bash
+# 1. Get full resume context
+python .claude/core/state.py resume-context
+# Returns:
+# {
+#   "workflow_id": "abc123",
+#   "goal": "Implement payment processing",
+#   "current_phase": "development",
+#   "recently_resolved_blockers": [
+#     {"index": 0, "description": "Stripe API key", "resolvedAt": "..."}
+#   ],
+#   "current_story": {
+#     "id": "S2",
+#     "title": "Payment integration",
+#     "status": "in_progress",
+#     "tdd_phase": "green",
+#     "attempts": 2
+#   },
+#   "resume_instructions": [...]
+# }
+
+# 2. Verify the fix if a check command was specified
+python .claude/core/state.py check-user-fix
+# Returns: {"is_fixed": true, "verified": true, "can_resume": true}
+
+# 3. Resume from current TDD phase
+python .claude/core/state.py tdd-status S2
+# Returns: "green" (was in middle of making tests pass)
+
+# 4. Re-run tests to verify fix didn't break anything
+BUILD_CMD=$(python .claude/core/platform.py get-command build)
+TEST_CMD=$(python .claude/core/platform.py get-command test)
+eval "$BUILD_CMD" && eval "$TEST_CMD"
+
+# 5. Continue with normal story execution loop
+```
+
+**Resume Context in Developer Prompt:**
+
+When resuming, include this context in the developer agent prompt:
+
+```markdown
+## RESUMING AFTER BLOCKER
+
+**Resolved Blocker:** {description}
+**Resolution Notes:** {user's notes from user-fix-complete}
+**Verification:** {PASSED/FAILED}
+
+**Picking Up Where We Left Off:**
+- Story: [{story_id}] {story_title}
+- TDD Phase: {tdd_phase} (continue from here)
+- Attempts: {attempts}
+- Previous Failures: {summary of previous failures}
+
+**First Step After Resume:**
+1. Verify the fix works by running build/tests
+2. If verified, continue from current TDD phase
+3. If not verified, report new blocker
+
+---
+Continue implementing story {story_id}...
+```
+
+### Stop Hook User Intervention Handling
+
+The Stop hook (`stop.py`) handles user intervention specially:
+
+1. **Before checking completion:** Check for `awaiting_user` status
+2. **If awaiting user:** Allow exit with clear instructions
+3. **User message includes:**
+   - What needs to be fixed
+   - How to verify the fix
+   - Command to signal completion
+   - How to restart workflow
+
+```python
+# Stop hook logic (simplified):
+def main():
+    # Priority 1: Check for user intervention
+    is_awaiting, intervention = check_user_intervention(input_data)
+    if is_awaiting:
+        # Allow exit but provide instructions
+        return {'decision': 'allow', 'userMessage': get_intervention_instructions()}
+
+    # Priority 2: Check for completion
+    is_complete, reason = check_completion(input_data)
+    if is_complete:
+        return {'decision': 'allow'}
+
+    # Priority 3: Block exit, continue workflow
+    return {'decision': 'block', 'continuePrompt': get_continuation_context()}
+```
+
+---
+
 ## Commands Reference
 
 - `/workflow [goal]` - Start full autonomous workflow
@@ -1020,3 +1253,6 @@ When resuming:
 6. **Persist state** - enable recovery from any interruption
 7. **Progress reports** - visibility every 3 stories or 30 minutes
 8. **PR only after full verification** - Gate G7 must pass
+9. **Scan for external dependencies** before developing each story
+10. **Use await_user_fix** for blockers requiring manual intervention
+11. **Resume gracefully** after user-fixed blockers with full context

@@ -57,6 +57,12 @@ ESCALATION_MARKERS = [
     'MAX_RETRIES_EXCEEDED',
 ]
 
+# User intervention markers
+USER_INTERVENTION_MARKERS = [
+    'AWAITING_USER_FIX',
+    'awaiting_user',
+]
+
 
 def load_state():
     """Load workflow state if it exists."""
@@ -108,6 +114,34 @@ def log_progress(message):
         pass
 
 
+def check_user_intervention(stop_hook_data):
+    """
+    Check if workflow is waiting for user intervention.
+
+    Returns:
+        (is_awaiting: bool, intervention_details: dict)
+    """
+    state = load_state()
+    if not state:
+        return False, {}
+
+    # Check workflow status
+    if state.get('status') == 'awaiting_user':
+        intervention = state.get('userIntervention', {})
+        return True, intervention
+
+    # Check for user intervention markers in output
+    transcript = stop_hook_data.get('transcript', '')
+    last_output = stop_hook_data.get('lastAssistantMessage', '')
+    combined = f"{transcript}\n{last_output}"
+
+    for marker in USER_INTERVENTION_MARKERS:
+        if marker in combined:
+            return True, {'description': 'User intervention requested in output'}
+
+    return False, {}
+
+
 def check_completion(stop_hook_data):
     """
     Check if the workflow is complete.
@@ -145,6 +179,36 @@ def check_completion(stop_hook_data):
             return True, f"Escalation required: {marker}"
 
     return False, "Workflow incomplete"
+
+
+def get_user_intervention_message(intervention):
+    """Generate user-friendly message for awaiting user fix."""
+    lines = [
+        "",
+        "=" * 60,
+        "WORKFLOW PAUSED - USER ACTION REQUIRED",
+        "=" * 60,
+        "",
+        f"Issue: {intervention.get('description', 'Manual intervention needed')}",
+        "",
+    ]
+
+    check_cmd = intervention.get('checkCommand')
+    if check_cmd:
+        lines.append(f"Verification command: {check_cmd}")
+        lines.append("")
+
+    lines.extend([
+        "To resume the workflow:",
+        "  1. Fix the issue described above",
+        f"  2. Verify your fix: {check_cmd}" if check_cmd else "  2. Test your fix manually",
+        "  3. Run: python .claude/core/state.py user-fix-complete",
+        "  4. Restart Claude Code to resume the workflow",
+        "",
+        "=" * 60,
+    ])
+
+    return '\n'.join(lines)
 
 
 def get_continuation_context():
@@ -212,6 +276,7 @@ def main():
 
     Per Ralph Wiggum pattern:
     - If workflow is complete, allow exit
+    - If awaiting user intervention, allow exit with instructions
     - If not complete, block exit and provide continuation context
     """
     try:
@@ -234,6 +299,19 @@ def main():
         print(json.dumps({
             'decision': 'allow',
             'reason': f'Max iterations ({max_iterations}) reached - safety exit'
+        }))
+        return
+
+    # Check for user intervention (takes priority over completion check)
+    is_awaiting, intervention = check_user_intervention(input_data)
+    if is_awaiting:
+        log_progress(f"Awaiting user fix: {intervention.get('description', 'Unknown')}")
+        # Allow exit but provide clear instructions
+        message = get_user_intervention_message(intervention)
+        print(json.dumps({
+            'decision': 'allow',
+            'reason': 'Awaiting user intervention',
+            'userMessage': message
         }))
         return
 

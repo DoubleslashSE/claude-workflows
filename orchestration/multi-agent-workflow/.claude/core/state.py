@@ -527,6 +527,332 @@ def get_next_story_internal(state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 # ============================================================================
+# User Intervention & External Dependencies
+# ============================================================================
+
+# External dependency patterns for automated scanning
+EXTERNAL_DEPENDENCY_PATTERNS = {
+    'payment': {
+        'keywords': ['stripe', 'paypal', 'braintree', 'payment gateway', 'credit card', 'billing'],
+        'category': 'payment_processing',
+        'mock_strategy': 'Use test/sandbox API keys or mock payment service',
+        'requires_secrets': True
+    },
+    'email': {
+        'keywords': ['sendgrid', 'mailgun', 'smtp', 'email service', 'ses ', 'postmark'],
+        'category': 'email_service',
+        'mock_strategy': 'Use local mailhog/papercut or mock email sender',
+        'requires_secrets': True
+    },
+    'oauth': {
+        'keywords': ['oauth', 'google auth', 'facebook login', 'social login', 'openid', 'identity provider'],
+        'category': 'authentication',
+        'mock_strategy': 'Use test OAuth credentials or mock identity provider',
+        'requires_secrets': True
+    },
+    'storage': {
+        'keywords': ['s3 ', 'azure blob', 'cloudinary', 'cloud storage', 'cdn ', 'file upload'],
+        'category': 'cloud_storage',
+        'mock_strategy': 'Use local minio/azurite or mock storage service',
+        'requires_secrets': True
+    },
+    'sms': {
+        'keywords': ['twilio', 'nexmo', 'sms gateway', 'text message', 'vonage'],
+        'category': 'sms_service',
+        'mock_strategy': 'Use SMS service test mode or mock SMS sender',
+        'requires_secrets': True
+    },
+    'ai_ml': {
+        'keywords': ['openai', 'gpt-4', 'anthropic', 'claude', 'huggingface', 'machine learning', 'ai service'],
+        'category': 'ai_ml_service',
+        'mock_strategy': 'Use recorded responses or mock AI service',
+        'requires_secrets': True
+    },
+    'database_cloud': {
+        'keywords': ['rds ', 'cosmosdb', 'atlas', 'planetscale', 'supabase', 'firebase', 'dynamodb'],
+        'category': 'cloud_database',
+        'mock_strategy': 'Use local database container or in-memory database',
+        'requires_secrets': True
+    },
+    'messaging': {
+        'keywords': ['rabbitmq', 'kafka', 'azure service bus', 'sqs ', 'pubsub', 'eventgrid'],
+        'category': 'message_queue',
+        'mock_strategy': 'Use local message broker container or in-memory queue',
+        'requires_secrets': False
+    }
+}
+
+
+def scan_story_dependencies(story_id: str) -> List[Dict[str, Any]]:
+    """
+    Scan story description and acceptance criteria for external dependency keywords.
+    Returns list of detected dependencies with mock strategies.
+    """
+    state = load_state()
+    if not state:
+        return []
+
+    story = None
+    for s in state.get('stories', []):
+        if s['id'] == story_id:
+            story = s
+            break
+
+    if not story:
+        return []
+
+    # Combine text to scan
+    text_to_scan = story.get('title', '').lower()
+    for criterion in story.get('acceptanceCriteria', []):
+        text_to_scan += ' ' + criterion.lower()
+    text_to_scan += ' ' + story.get('description', '').lower()
+
+    detected = []
+    for dep_type, config in EXTERNAL_DEPENDENCY_PATTERNS.items():
+        for keyword in config['keywords']:
+            if keyword.lower() in text_to_scan:
+                detected.append({
+                    'type': dep_type,
+                    'keyword_matched': keyword,
+                    'category': config['category'],
+                    'mock_strategy': config['mock_strategy'],
+                    'requires_secrets': config['requires_secrets']
+                })
+                break  # Only match once per dependency type
+
+    # Update story with detected dependencies
+    if detected:
+        story['detectedDependencies'] = detected
+        save_state(state)
+        log_progress(f"Detected {len(detected)} external dependencies: {', '.join(d['type'] for d in detected)}", story_id=story_id)
+
+    return detected
+
+
+def await_user_fix(
+    blocker_id: int,
+    description: str,
+    check_command: str = None,
+    timeout_minutes: int = 60
+) -> Dict[str, Any]:
+    """
+    Mark workflow as waiting for user intervention on a blocker.
+
+    This pauses the workflow loop until the user signals they've fixed the issue.
+    The Stop hook will detect this status and allow exit with a special message.
+
+    Args:
+        blocker_id: Index of the blocker in the blockers list
+        description: Human-readable description of what needs fixing
+        check_command: Optional command to verify the fix (e.g., "dotnet build")
+        timeout_minutes: How long to wait before auto-escalating
+
+    Returns:
+        Dict with intervention details and instructions for the user
+    """
+    state = load_state()
+    if not state:
+        return {'error': 'No active workflow'}
+
+    # Mark workflow status
+    state['status'] = 'awaiting_user'
+    state['userIntervention'] = {
+        'blockerId': blocker_id,
+        'description': description,
+        'checkCommand': check_command,
+        'requestedAt': now_iso(),
+        'timeoutMinutes': timeout_minutes,
+        'expiresAt': None  # Will be set when calculating timeout
+    }
+
+    # If we have a blocker reference, update it
+    if blocker_id < len(state.get('blockers', [])):
+        state['blockers'][blocker_id]['awaitingUserFix'] = True
+        state['blockers'][blocker_id]['checkCommand'] = check_command
+
+    save_state(state)
+    log_progress(f"AWAITING USER: {description}")
+
+    return {
+        'status': 'awaiting_user',
+        'description': description,
+        'check_command': check_command,
+        'instructions': [
+            f"1. Fix the issue: {description}",
+            f"2. Run verification: {check_command}" if check_command else "2. Verify your fix manually",
+            "3. Resume workflow: python .claude/core/state.py user-fix-complete",
+            "",
+            "The workflow will resume automatically when you signal completion."
+        ]
+    }
+
+
+def check_user_fix() -> Dict[str, Any]:
+    """
+    Check if user has signaled their fix is complete.
+    Optionally runs the check_command to verify.
+
+    Returns:
+        - is_fixed: bool
+        - verified: bool (if check_command was run)
+        - can_resume: bool
+        - details: str
+    """
+    state = load_state()
+    if not state:
+        return {'is_fixed': False, 'error': 'No active workflow'}
+
+    intervention = state.get('userIntervention')
+    if not intervention:
+        return {'is_fixed': True, 'can_resume': True, 'details': 'No intervention pending'}
+
+    # Check if user marked as complete
+    if intervention.get('completedAt'):
+        # Run verification command if specified
+        check_cmd = intervention.get('checkCommand')
+        if check_cmd:
+            try:
+                result = subprocess.run(
+                    check_cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd=PROJECT_ROOT
+                )
+                verified = result.returncode == 0
+                return {
+                    'is_fixed': True,
+                    'verified': verified,
+                    'can_resume': verified,
+                    'details': f"Verification {'passed' if verified else 'failed'}: {check_cmd}",
+                    'output': result.stdout[:500] if not verified else None,
+                    'error': result.stderr[:500] if not verified else None
+                }
+            except subprocess.TimeoutExpired:
+                return {
+                    'is_fixed': True,
+                    'verified': False,
+                    'can_resume': False,
+                    'details': 'Verification command timed out'
+                }
+        else:
+            return {
+                'is_fixed': True,
+                'verified': True,
+                'can_resume': True,
+                'details': 'User signaled fix complete (no verification command)'
+            }
+
+    # Check timeout
+    requested_at = datetime.fromisoformat(intervention['requestedAt'].replace('Z', '+00:00'))
+    elapsed_minutes = (datetime.now(timezone.utc) - requested_at).total_seconds() / 60
+    timeout = intervention.get('timeoutMinutes', 60)
+
+    if elapsed_minutes >= timeout:
+        return {
+            'is_fixed': False,
+            'can_resume': False,
+            'timed_out': True,
+            'details': f'User intervention timed out after {timeout} minutes',
+            'escalate': True
+        }
+
+    return {
+        'is_fixed': False,
+        'can_resume': False,
+        'waiting_minutes': round(elapsed_minutes, 1),
+        'timeout_minutes': timeout,
+        'details': f'Waiting for user fix ({round(elapsed_minutes)}/{timeout} minutes)'
+    }
+
+
+def signal_user_fix_complete(notes: str = None) -> Dict[str, Any]:
+    """
+    User signals that they have completed the fix.
+    Called by user via CLI: python state.py user-fix-complete
+    """
+    state = load_state()
+    if not state:
+        return {'error': 'No active workflow'}
+
+    intervention = state.get('userIntervention')
+    if not intervention:
+        return {'error': 'No intervention pending'}
+
+    intervention['completedAt'] = now_iso()
+    intervention['notes'] = notes
+    state['status'] = 'in_progress'  # Resume workflow
+
+    # Mark blocker as resolved if we have a reference
+    blocker_id = intervention.get('blockerId')
+    if blocker_id is not None and blocker_id < len(state.get('blockers', [])):
+        state['blockers'][blocker_id]['resolved'] = True
+        state['blockers'][blocker_id]['resolvedAt'] = now_iso()
+        state['blockers'][blocker_id]['resolvedBy'] = 'user'
+
+    save_state(state)
+    log_progress(f"USER FIX COMPLETE: {intervention.get('description', 'Unknown issue')}")
+
+    return {
+        'status': 'resumed',
+        'intervention': intervention,
+        'details': 'Workflow will resume on next iteration'
+    }
+
+
+def get_resume_context_after_blocker() -> Dict[str, Any]:
+    """
+    Get context needed to resume workflow after a blocker was fixed.
+    Provides comprehensive information for seamless continuation.
+    """
+    state = load_state()
+    if not state:
+        return {'error': 'No active workflow'}
+
+    # Get recently resolved blockers
+    recent_resolved = []
+    for i, b in enumerate(state.get('blockers', [])):
+        if b.get('resolved') and b.get('resolvedBy') == 'user':
+            recent_resolved.append({
+                'index': i,
+                'description': b['description'],
+                'resolvedAt': b.get('resolvedAt')
+            })
+
+    # Get current story context
+    current_story = get_next_story()
+    story_context = None
+    if current_story:
+        story_context = {
+            'id': current_story['id'],
+            'title': current_story['title'],
+            'status': current_story['status'],
+            'tdd_phase': current_story.get('tddPhase'),
+            'attempts': current_story.get('attempts', 0),
+            'verification': current_story.get('verificationChecks', {})
+        }
+
+    # Get clarifications for context
+    clarifications = get_clarifications()
+
+    return {
+        'workflow_id': state.get('workflowId'),
+        'goal': state.get('goal'),
+        'current_phase': state.get('currentPhase'),
+        'recently_resolved_blockers': recent_resolved,
+        'current_story': story_context,
+        'clarifications': clarifications[-5:] if clarifications else [],  # Last 5
+        'resume_instructions': [
+            "1. Verify the blocker fix by running the check command if applicable",
+            "2. Continue from the current TDD phase if mid-story",
+            "3. Re-run tests to ensure the fix didn't break anything",
+            "4. Proceed with normal workflow"
+        ]
+    }
+
+
+# ============================================================================
 # TDD Phase Tracking
 # ============================================================================
 
@@ -1192,6 +1518,15 @@ if __name__ == '__main__':
         print('Iteration Tracking:')
         print('  iteration                      Show current iteration count')
         print('')
+        print('User Intervention:')
+        print('  await-user-fix <blocker_id> <description> [--check-command "cmd"] [--timeout N]')
+        print('  check-user-fix                 Check if user has completed their fix')
+        print('  user-fix-complete [--notes "note"]  Signal that user fix is complete')
+        print('  resume-context                 Get context for resuming after blocker')
+        print('')
+        print('Dependency Scanning:')
+        print('  scan-dependencies <story_id>   Scan story for external dependencies')
+        print('')
         sys.exit(1)
 
     command = sys.argv[1]
@@ -1412,6 +1747,61 @@ if __name__ == '__main__':
                 sys.exit(3)
         else:
             print('No alerts')
+
+    # User Intervention commands
+    elif command == 'await-user-fix':
+        blocker_id = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        description = sys.argv[3] if len(sys.argv) > 3 else 'Manual intervention needed'
+        check_command = None
+        timeout = 60
+        for i, arg in enumerate(sys.argv):
+            if arg == '--check-command' and i + 1 < len(sys.argv):
+                check_command = sys.argv[i + 1]
+            elif arg == '--timeout' and i + 1 < len(sys.argv):
+                timeout = int(sys.argv[i + 1])
+        result = await_user_fix(blocker_id, description, check_command, timeout)
+        print(json.dumps(result, indent=2))
+        if result.get('status') == 'awaiting_user':
+            sys.exit(10)  # Special exit code for awaiting user
+
+    elif command == 'check-user-fix':
+        result = check_user_fix()
+        print(json.dumps(result, indent=2))
+        if result.get('can_resume'):
+            sys.exit(0)
+        elif result.get('timed_out'):
+            sys.exit(11)  # Timeout exit code
+        else:
+            sys.exit(12)  # Still waiting
+
+    elif command == 'user-fix-complete':
+        notes = None
+        for i, arg in enumerate(sys.argv):
+            if arg == '--notes' and i + 1 < len(sys.argv):
+                notes = sys.argv[i + 1]
+        result = signal_user_fix_complete(notes)
+        print(json.dumps(result, indent=2))
+        if result.get('error'):
+            sys.exit(1)
+
+    elif command == 'resume-context':
+        result = get_resume_context_after_blocker()
+        print(json.dumps(result, indent=2))
+
+    # Dependency scanning commands
+    elif command == 'scan-dependencies':
+        story_id = sys.argv[2] if len(sys.argv) > 2 else 'S1'
+        deps = scan_story_dependencies(story_id)
+        if deps:
+            print(f'Detected {len(deps)} external dependencies:')
+            for dep in deps:
+                print(f"  [{dep['type']}] {dep['category']}")
+                print(f"    Keyword: {dep['keyword_matched']}")
+                print(f"    Mock: {dep['mock_strategy']}")
+                print(f"    Requires secrets: {dep['requires_secrets']}")
+                print()
+        else:
+            print('No external dependencies detected')
 
     else:
         print(f'Unknown command: {command}')
