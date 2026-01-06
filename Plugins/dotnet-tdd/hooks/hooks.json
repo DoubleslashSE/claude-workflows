@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "A source file was modified. If this was a .cs file in the src/ or tests/ directory, consider running relevant tests with 'dotnet test' to verify the change doesn't break existing functionality. For TDD workflow, ensure tests are run after each RED, GREEN, and REFACTOR phase."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Remember to follow TDD principles (RED-GREEN-REFACTOR) and ensure code adheres to SOLID, DRY, KISS, YAGNI, and CQS principles. Available commands: /dotnet-tdd:tdd, /dotnet-tdd:red, /dotnet-tdd:green, /dotnet-tdd:refactor, /dotnet-tdd:review"
+          }
+        ]
+      }
+    ]
+  }
+}
