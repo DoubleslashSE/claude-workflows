@@ -36,6 +36,5 @@
     "./skills/codebase-analysis",
     "./skills/srs-documentation",
     "./skills/technical-analysis"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }

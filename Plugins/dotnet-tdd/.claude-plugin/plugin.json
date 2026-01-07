@@ -34,6 +34,5 @@
     "./skills/solid-principles",
     "./skills/clean-code",
     "./skills/cqs-patterns"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }
