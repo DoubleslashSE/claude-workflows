@@ -1,0 +1,36 @@
+{
+  "name": "node-tdd",
+  "version": "1.0.0",
+  "description": "Node.js Test-Driven Development plugin with TypeScript support, SOLID principles, clean code practices, and functional patterns",
+  "author": "Claude Code Plugin",
+  "keywords": [
+    "nodejs",
+    "typescript",
+    "tdd",
+    "test-driven-development",
+    "solid",
+    "clean-code",
+    "functional",
+    "jest",
+    "vitest"
+  ],
+  "commands": [
+    "../commands/tdd.md",
+    "../commands/red.md",
+    "../commands/green.md",
+    "../commands/refactor.md",
+    "../commands/review.md"
+  ],
+  "agents": [
+    "../agents/test-designer.md",
+    "../agents/implementer.md",
+    "../agents/refactorer.md",
+    "../agents/reviewer.md"
+  ],
+  "skills": [
+    "../skills/tdd-workflow/SKILL.md",
+    "../skills/solid-principles/SKILL.md",
+    "../skills/clean-code/SKILL.md",
+    "../skills/functional-patterns/SKILL.md"
+  ]
+}

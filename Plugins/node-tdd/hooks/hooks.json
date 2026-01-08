@@ -1,0 +1,63 @@
+{
+  "hooks": [
+    {
+      "matcher": "PostToolUse",
+      "triggers": [
+        {
+          "tool": "Write",
+          "conditions": {
+            "fileExtensions": [".ts", ".tsx", ".js", ".jsx"]
+          }
+        },
+        {
+          "tool": "Edit",
+          "conditions": {
+            "fileExtensions": [".ts", ".tsx", ".js", ".jsx"]
+          }
+        }
+      ],
+      "message": "Code modified. Consider: (1) Run tests: npm test (2) Check types: npx tsc --noEmit (3) Use /review for quality check"
+    },
+    {
+      "matcher": "PostToolUse",
+      "triggers": [
+        {
+          "tool": "Bash",
+          "conditions": {
+            "commandPatterns": ["npm test", "vitest", "jest"]
+          }
+        }
+      ],
+      "message": "Tests executed. If failures: analyze → fix → re-run. If passing: consider /refactor for code quality improvements."
+    },
+    {
+      "matcher": "UserPromptSubmit",
+      "triggers": [
+        {
+          "conditions": {
+            "conversationStart": true
+          }
+        }
+      ],
+      "message": "Node.js TDD Plugin active. Available commands: /tdd (full cycle), /red (design tests), /green (implement), /refactor (improve), /review (analyze). Core principles: TDD, SOLID, Clean Code, Functional Patterns."
+    },
+    {
+      "matcher": "Notification",
+      "triggers": [
+        {
+          "event": "review.complete"
+        }
+      ],
+      "message": "Review complete. Check quality scores against targets: SOLID 90%, Clean Code 90%, Tests 90%, TS/Functional 95%."
+    },
+    {
+      "matcher": "Notification",
+      "triggers": [
+        {
+          "event": "test.failure"
+        }
+      ],
+      "message": "Test failure detected. Analyze failure reason, implement fix, verify with npm test."
+    }
+  ]
+}

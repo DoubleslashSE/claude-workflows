@@ -17,6 +17,12 @@
       "source": "./Plugins/business-analyst",
       "description": "Senior Business Analyst plugin for requirements gathering, codebase analysis, stakeholder interviews, and IEEE 830 SRS generation with integrated feedback loop",
       "version": "1.0.1"
+    },
+    {
+      "name": "node-tdd",
+      "source": "./Plugins/node-tdd",
+      "description": "Test-Driven Development plugin for Node.js/TypeScript with SOLID principles, clean code practices, and functional patterns",
+      "version": "1.0.0"
     }
   ]
 }
