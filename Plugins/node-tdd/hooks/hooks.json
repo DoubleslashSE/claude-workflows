@@ -1,35 +1,3 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "If 'npm test', 'vitest', or 'jest' was just run, analyze the results for TDD phase guidance."
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "review_complete",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Code review completed. Check quality scores against targets (90% for SOLID/Clean/Tests, 95% for TypeScript/Functional)."
-          }
-        ]
-      },
-      {
-        "matcher": "test_failure",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Test failure detected. Analyze and apply minimal fix."
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
