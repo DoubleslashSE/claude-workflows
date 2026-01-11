@@ -1,7 +1,7 @@
 {
   "name": "node-tdd",
   "description": "Node.js Test-Driven Development plugin with TypeScript support, SOLID principles, clean code practices, and functional patterns",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "DoubleslashSE",
     "email": "info@doubleslash.se"
