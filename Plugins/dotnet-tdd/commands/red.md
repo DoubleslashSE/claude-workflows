@@ -8,24 +8,39 @@ Design and write failing tests for: **$ARGUMENTS**
 
 ## Your Task
 
-1. **Analyze Requirements**
-   - Understand the feature to be tested
-   - Identify the system under test (SUT)
+### 0. Clarify Requirements (If Needed)
 
-2. **Identify Test Scenarios**
-   - Happy path scenarios
-   - Edge cases
-   - Error conditions
-   - Boundary conditions
+Before writing tests, assess if requirements are clear:
+- [ ] Happy path behavior is defined
+- [ ] Inputs and expected outputs are known
+- [ ] Edge cases are identifiable
+- [ ] Error handling expectations are specified
 
-3. **Write Failing Tests**
-   - Follow AAA pattern (Arrange-Act-Assert)
-   - Use proper naming: `{Method}_{Scenario}_{Expected}`
-   - One logical assertion per test
+**If any are unclear**, ask clarifying questions:
+- "What should happen when [input] is [condition]?"
+- "What error should occur if [scenario]?"
+- "What are the boundary values for [parameter]?"
 
-4. **Verify Tests Fail**
-   - Run tests: `dotnet test`
-   - Confirm they fail for the RIGHT reason
+**Skip if**: Requirements are detailed, or user requests direct implementation.
+
+### 1. Analyze Requirements
+- Understand the feature to be tested
+- Identify the system under test (SUT)
+
+### 2. Identify Test Scenarios
+- Happy path scenarios
+- Edge cases
+- Error conditions
+- Boundary conditions
+
+### 3. Write Failing Tests
+- Follow AAA pattern (Arrange-Act-Assert)
+- Use proper naming: `{Method}_{Scenario}_{Expected}`
+- One logical assertion per test
+
+### 4. Verify Tests Fail
+- Run tests: `dotnet test`
+- Confirm they fail for the RIGHT reason
 
 ## Test Template
 
