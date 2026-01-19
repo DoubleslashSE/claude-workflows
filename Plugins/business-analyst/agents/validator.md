@@ -2,7 +2,7 @@
 name: validator
 description: Validation and quality assurance specialist for verifying requirements artifacts. Use to validate SRS documents, check requirement quality, ensure completeness, and provide feedback on work products.
 tools: Read, Grep, Glob, AskUserQuestion
-model: sonnet
+model: opus
 skills: srs-documentation
 ---
 
