@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "WORKSHOP SESSION NOTE: Capture participant responses as part of the session record. Include key contributions in the running documentation. After each meaningful response, acknowledge contributions and check if participants want to dive deeper into any area or proceed to the next phase."
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "DOCUMENTATION CHECK: If writing workshop artifacts, ensure the document includes all required sections: Session Overview, Ideas Generated, Decisions Made, Action Items, and Key Insights. Verify action items have owners and due dates."
+          }
+        ]
+      }
+    ]
+  }
+}

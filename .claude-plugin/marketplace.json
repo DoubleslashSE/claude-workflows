@@ -29,6 +29,12 @@
       "source": "./Plugins/dotnet-developer",
       "description": "General .NET development workflow with automated validation through build, test, and static analysis quality gates",
       "version": "1.0.0"
+    },
+    {
+      "name": "workshop-facilitator",
+      "source": "./Plugins/workshop-facilitator",
+      "description": "Workshop facilitation plugin for design thinking and brainstorming with exploration tracking, backtracking, and documentation of explored and uncharted territory",
+      "version": "1.0.0"
     }
   ]
 }
