@@ -12,8 +12,8 @@ Display comprehensive workflow status including active item, context budget, and
 ## Usage
 
 ```
-/flow:status              # Show current status
-/flow:status --refresh    # Refresh capability cache and show status
+/flow-workflow:status              # Show current status
+/flow-workflow:status --refresh    # Refresh capability cache and show status
 ```
 
 ## What It Shows
@@ -151,10 +151,10 @@ Or when approaching limit:
 
 ## Quick Commands
 
-- `/flow:go` - Continue work
-- `/flow:start "name"` - New item
-- `/flow:backlog` - Full backlog
-- `/flow:quick "task"` - Quick execution
+- `/flow-workflow:go` - Continue work
+- `/flow-workflow:start "name"` - New item
+- `/flow-workflow:backlog` - Full backlog
+- `/flow-workflow:quick "task"` - Quick execution
 ```
 
 ## Refresh Option
@@ -187,7 +187,7 @@ If `.flow/FLOW.md` doesn't exist:
 
 No .flow/ directory found.
 
-Initialize with: `/flow:start`
+Initialize with: `/flow-workflow:start`
 ```
 
 ## No Active Item
@@ -200,9 +200,9 @@ If initialized but no active item:
 **Current**: None
 
 Start working:
-- `/flow:start "item name"` - Create new item
-- `/flow:start ITEM-XXX` - Resume existing item
-- `/flow:backlog` - View all items
+- `/flow-workflow:start "item name"` - Create new item
+- `/flow-workflow:start ITEM-XXX` - Resume existing item
+- `/flow-workflow:backlog` - View all items
 ```
 
 ## Reading State

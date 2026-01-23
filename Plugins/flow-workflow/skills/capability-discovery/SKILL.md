@@ -210,10 +210,10 @@ When no plugin matches a capability:
 
 Re-scan plugins when:
 
-1. `/flow:start` is run on uninitialized project
+1. `/flow-workflow:start` is run on uninitialized project
 2. FLOW.md capability cache is older than 24 hours
 3. Requested capability returns no match (try fresh scan)
-4. User explicitly requests refresh via `/flow:status --refresh`
+4. User explicitly requests refresh via `/flow-workflow:status --refresh`
 
 ## Capability Gap Logging
 

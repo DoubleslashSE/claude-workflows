@@ -12,10 +12,10 @@ Display and filter work items from the FLOW.md backlog.
 ## Usage
 
 ```
-/flow:backlog                    # Show all items
-/flow:backlog --status EXECUTE   # Filter by status
-/flow:backlog --priority P0      # Filter by priority
-/flow:backlog --status BACKLOG --priority P1  # Combined filter
+/flow-workflow:backlog                    # Show all items
+/flow-workflow:backlog --status EXECUTE   # Filter by status
+/flow-workflow:backlog --priority P0      # Filter by priority
+/flow-workflow:backlog --status BACKLOG --priority P1  # Combined filter
 ```
 
 ## Available Filters
@@ -97,9 +97,9 @@ Display and filter work items from the FLOW.md backlog.
 ---
 
 **Commands**:
-- `/flow:start ITEM-XXX` - Switch to item
-- `/flow:go` - Continue active item
-- `/flow:start "name"` - Create new item
+- `/flow-workflow:start ITEM-XXX` - Switch to item
+- `/flow-workflow:go` - Continue active item
+- `/flow-workflow:start "name"` - Create new item
 ```
 
 ### Filtered Backlog
@@ -118,7 +118,7 @@ Display and filter work items from the FLOW.md backlog.
 ---
 
 **Other statuses**: BACKLOG (2), DONE (3)
-**Clear filter**: `/flow:backlog`
+**Clear filter**: `/flow-workflow:backlog`
 ```
 
 ### By Priority
@@ -149,7 +149,7 @@ Display and filter work items from the FLOW.md backlog.
 
 No blocked items.
 
-**Suggestion**: View all items with `/flow:backlog`
+**Suggestion**: View all items with `/flow-workflow:backlog`
 ```
 
 ## Reading from FLOW.md
@@ -206,7 +206,7 @@ If no FLOW.md:
 
 No backlog exists yet.
 
-Initialize with: `/flow:start`
+Initialize with: `/flow-workflow:start`
 ```
 
 ## Empty Backlog
@@ -220,8 +220,8 @@ If FLOW.md exists but no items:
 
 No work items yet.
 
-**Create one**: `/flow:start "item name"`
-**Quick task**: `/flow:quick "task"`
+**Create one**: `/flow-workflow:start "item name"`
+**Quick task**: `/flow-workflow:quick "task"`
 ```
 
 ## Integration

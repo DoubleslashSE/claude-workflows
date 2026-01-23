@@ -11,7 +11,7 @@ This is the primary command for continuing workflow execution. It reads current 
 ## Usage
 
 ```
-/flow:go                    # Continue from current state
+/flow-workflow:go                    # Continue from current state
 ```
 
 ## Smart Continuation Logic
@@ -19,7 +19,7 @@ This is the primary command for continuing workflow execution. It reads current 
 ```markdown
 1. Read FLOW.md to get active item
 2. If no active item:
-   → Prompt user to /flow:start
+   → Prompt user to /flow-workflow:start
 3. Read ITEM-XXX.md to get current phase/task
 4. Determine next action based on state:
 
@@ -199,9 +199,9 @@ Beginning [NEW_PHASE]...
 
 Create or select a work item first:
 
-- `/flow:start "item name"` - Create new item
-- `/flow:start ITEM-XXX` - Switch to existing item
-- `/flow:backlog` - View all items
+- `/flow-workflow:start "item name"` - Create new item
+- `/flow-workflow:start ITEM-XXX` - Switch to existing item
+- `/flow-workflow:backlog` - View all items
 ```
 
 ### Workflow Complete
@@ -217,7 +217,7 @@ Create or select a work item first:
 **Next in backlog**:
 - ITEM-YYY: [Title] (BACKLOG)
 
-Start next item? `/flow:start ITEM-YYY`
+Start next item? `/flow-workflow:start ITEM-YYY`
 ```
 
 ## Error Handling
@@ -248,8 +248,8 @@ The [agent] encountered an error:
 **State preserved** at checkpoint.
 
 **Options**:
-1. Retry with `/flow:go`
-2. Check `/flow:status` for details
+1. Retry with `/flow-workflow:go`
+2. Check `/flow-workflow:status` for details
 3. Manual intervention needed
 ```
 

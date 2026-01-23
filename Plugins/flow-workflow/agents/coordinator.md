@@ -108,7 +108,7 @@ Consider installing: business-analyst plugin
 | Operation | When |
 |-----------|------|
 | Update backlog | Item status changes |
-| Update active item | `/flow:start` or item switch |
+| Update active item | `/flow-workflow:start` or item switch |
 | Update capabilities | Initialization or refresh |
 | Update context monitor | Each session |
 
@@ -116,7 +116,7 @@ Consider installing: business-analyst plugin
 
 | Operation | When |
 |-----------|------|
-| Create | `/flow:start [name]` |
+| Create | `/flow-workflow:start [name]` |
 | Update phase | Phase transitions |
 | Add decisions | DISCUSS phase |
 | Add requirements | DISCUSS phase |
@@ -208,11 +208,11 @@ When starting on an uninitialized project:
 
 ## Smart Continuation Logic
 
-When `/flow:go` is called:
+When `/flow-workflow:go` is called:
 
 ```markdown
 1. Read FLOW.md to get active item
-2. If no active item → prompt user to /flow:start
+2. If no active item → prompt user to /flow-workflow:start
 3. Read ITEM-XXX.md to get current phase/task
 4. Determine next action:
    - DISCUSS incomplete → continue with interviewer/discovered agent
@@ -271,8 +271,8 @@ Always respond with clear status:
 
 | Command | Action |
 |---------|--------|
-| `/flow:start [name]` | Initialize + create/switch to item |
-| `/flow:go` | Smart continuation from current state |
-| `/flow:status` | Show current state + context budget |
-| `/flow:quick "task"` | Direct execution without state |
-| `/flow:backlog` | List all items from FLOW.md |
+| `/flow-workflow:start [name]` | Initialize + create/switch to item |
+| `/flow-workflow:go` | Smart continuation from current state |
+| `/flow-workflow:status` | Show current state + context budget |
+| `/flow-workflow:quick "task"` | Direct execution without state |
+| `/flow-workflow:backlog` | List all items from FLOW.md |

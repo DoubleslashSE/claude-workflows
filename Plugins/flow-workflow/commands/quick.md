@@ -12,9 +12,9 @@ Execute a small, well-defined task directly without creating state files. This i
 ## Usage
 
 ```
-/flow:quick "Fix the typo in README"
-/flow:quick "Add null check to getUserById"
-/flow:quick "Update the version to 2.0.0"
+/flow-workflow:quick "Fix the typo in README"
+/flow-workflow:quick "Add null check to getUserById"
+/flow-workflow:quick "Update the version to 2.0.0"
 ```
 
 ## When to Use Quick Mode
@@ -70,7 +70,7 @@ This task might need full workflow:
 
 Options:
 1. Continue with quick mode anyway
-2. Use full workflow: `/flow:start "[task]"`
+2. Use full workflow: `/flow-workflow:start "[task]"`
 ```
 
 ### Step 2: Clarification (If Needed)
@@ -194,7 +194,7 @@ Quick mode revealed complexity:
 
 Creating work item and transitioning...
 
-Use `/flow:go` to continue with full workflow.
+Use `/flow-workflow:go` to continue with full workflow.
 ```
 
 This creates state files and transitions to regular workflow.

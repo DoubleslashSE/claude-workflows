@@ -27,7 +27,7 @@ With just **5 commands** and **2 state files**, it provides:
 ### Start a Work Item
 
 ```
-/flow:start "Add user authentication"
+/flow-workflow:start "Add user authentication"
 ```
 
 This initializes the project (if needed), creates a work item, and begins the DISCUSS phase.
@@ -35,7 +35,7 @@ This initializes the project (if needed), creates a work item, and begins the DI
 ### Continue Working
 
 ```
-/flow:go
+/flow-workflow:go
 ```
 
 Smart continuation from current state - automatically routes to the right phase and agent.
@@ -43,7 +43,7 @@ Smart continuation from current state - automatically routes to the right phase 
 ### Quick Task (No State Files)
 
 ```
-/flow:quick "Fix the typo in README"
+/flow-workflow:quick "Fix the typo in README"
 ```
 
 Direct execution for small, well-defined tasks.
@@ -52,11 +52,11 @@ Direct execution for small, well-defined tasks.
 
 | Command | Description |
 |---------|-------------|
-| `/flow:start [name]` | Initialize, create item, or switch to existing |
-| `/flow:go` | Smart continuation from current state |
-| `/flow:status` | Show state, context budget, capabilities |
-| `/flow:backlog` | List and filter work items |
-| `/flow:quick "task"` | Direct execution without state |
+| `/flow-workflow:start [name]` | Initialize, create item, or switch to existing |
+| `/flow-workflow:go` | Smart continuation from current state |
+| `/flow-workflow:status` | Show state, context budget, capabilities |
+| `/flow-workflow:backlog` | List and filter work items |
+| `/flow-workflow:quick "task"` | Direct execution without state |
 
 ## State Files (2 Patterns)
 
@@ -235,7 +235,7 @@ If you don't have specialized plugins, built-in defaults handle all capabilities
 ## Example Session
 
 ```
-> /flow:start "Add user registration"
+> /flow-workflow:start "Add user registration"
 
 **Work Item Created**: ITEM-001
 **Phase**: DISCUSS
@@ -245,19 +245,19 @@ Matched via keyword scoring
 
 [Interview begins...]
 
-> /flow:go
+> /flow-workflow:go
 
 **Phase Transition**: DISCUSS → PLAN
 Creating atomic tasks...
 
-> /flow:go
+> /flow-workflow:go
 
 **Continuing EXECUTE** (task 1/4)
 **Delegating tdd-implementation** → dotnet-tdd:implementer
 
 [Implementation continues...]
 
-> /flow:status
+> /flow-workflow:status
 
 **Active Item**: ITEM-001 - Add user registration
 **Phase**: EXECUTE (task 3/4)
@@ -281,8 +281,8 @@ Creating atomic tasks...
 
 ## Best Practices
 
-1. **Use `/flow:go`** - It figures out what to do next
-2. **Check `/flow:status`** - See context budget and capabilities
+1. **Use `/flow-workflow:go`** - It figures out what to do next
+2. **Check `/flow-workflow:status`** - See context budget and capabilities
 3. **Install specialized plugins** - Better quality than defaults
 4. **Don't skip VERIFY** - Even for small changes
 5. **Review state files** - They're human-readable for a reason

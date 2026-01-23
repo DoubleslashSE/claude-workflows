@@ -57,11 +57,11 @@
 
 ## Quick Commands
 
-- `/flow:go` - Continue from current state
-- `/flow:status` - Show detailed status
-- `/flow:start [name]` - Create/switch to item
-- `/flow:backlog` - List all items
-- `/flow:quick "task"` - Direct execution (no state)
+- `/flow-workflow:go` - Continue from current state
+- `/flow-workflow:status` - Show detailed status
+- `/flow-workflow:start [name]` - Create/switch to item
+- `/flow-workflow:backlog` - List all items
+- `/flow-workflow:quick "task"` - Direct execution (no state)
 ```
 
 ## ITEM-XXX.md Template (Per-Item)
@@ -222,7 +222,7 @@ TASK-001 ✓ → TASK-002 ✓ → TASK-003 ● → TASK-004 ○ → TASK-005 ○
 
 **Next Action**: Complete token validation in TASK-003, then run verification
 
-**Resume Command**: `/flow:go` will continue from TASK-003
+**Resume Command**: `/flow-workflow:go` will continue from TASK-003
 
 ## Blockers
 

@@ -12,10 +12,10 @@ This command handles initialization, work item creation, and item switching in o
 ## Usage
 
 ```
-/flow:start                     # Initialize if needed, show backlog
-/flow:start "Add auth"          # Create/switch to item named "Add auth"
-/flow:start ITEM-001            # Switch to existing item
-/flow:start "Fix bug" --priority P0  # Create P0 priority item
+/flow-workflow:start                     # Initialize if needed, show backlog
+/flow-workflow:start "Add auth"          # Create/switch to item named "Add auth"
+/flow-workflow:start ITEM-001            # Switch to existing item
+/flow-workflow:start "Fix bug" --priority P0  # Create P0 priority item
 ```
 
 ## Behavior
@@ -202,8 +202,8 @@ Read ITEM-XXX.md for new item's state.
 [capabilities]
 
 **Next Steps**:
-- `/flow:start "item name"` - Create work item
-- `/flow:quick "task"` - Quick execution
+- `/flow-workflow:start "item name"` - Create work item
+- `/flow-workflow:quick "task"` - Quick execution
 ```
 
 ### Item Created
@@ -232,7 +232,7 @@ Beginning requirements exploration...
 
 **Last checkpoint**: [summary]
 
-Ready to continue. Use `/flow:go` to resume.
+Ready to continue. Use `/flow-workflow:go` to resume.
 ```
 
 ### Already Initialized (No Args)
@@ -249,9 +249,9 @@ Ready to continue. Use `/flow:go` to resume.
 - [N] completed
 
 **Next Steps**:
-- `/flow:go` - Continue current work
-- `/flow:start "name"` - Create new item
-- `/flow:backlog` - View all items
+- `/flow-workflow:go` - Continue current work
+- `/flow-workflow:start "name"` - Create new item
+- `/flow-workflow:backlog` - View all items
 ```
 
 ## Error Handling
@@ -272,7 +272,7 @@ Did you mean one of these?
 - ITEM-001: [similar title]
 - ITEM-002: [similar title]
 
-Or create new: `/flow:start "[input]"`
+Or create new: `/flow-workflow:start "[input]"`
 ```
 
 ## Integration

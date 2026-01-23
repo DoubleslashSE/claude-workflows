@@ -281,12 +281,12 @@ When needing to return to earlier phase:
 4. Abort with state preserved
 
 **State preserved at**: .flow/FLOW.md and .flow/items/ITEM-XXX.md
-**Resume command**: /flow:go
+**Resume command**: /flow-workflow:go
 ```
 
 ## Quick Mode Orchestration
 
-For `/flow:quick`:
+For `/flow-workflow:quick`:
 
 ```markdown
 ## Quick Mode Flow
@@ -301,7 +301,7 @@ ASSESS -> CLARIFY -> IMPLEMENT -> VERIFY
 - Brief verification
 
 **Escalation trigger**:
-If complexity exceeds quick mode, escalate to full workflow with /flow:start
+If complexity exceeds quick mode, escalate to full workflow with /flow-workflow:start
 ```
 
 ## Integration Points

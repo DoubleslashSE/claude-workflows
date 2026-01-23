@@ -100,7 +100,7 @@ Items progress through these phases:
 5. Create FLOW.md with empty backlog + capabilities
 ```
 
-### Create Work Item (`/flow:start`)
+### Create Work Item (`/flow-workflow:start`)
 
 ```markdown
 1. Read FLOW.md to get next item number
@@ -203,6 +203,6 @@ State management integrates with:
 
 - **Capability Discovery**: Cache plugin mappings in FLOW.md
 - **Workflow Orchestration**: Phase transitions and checkpoints
-- **Smart Continuation**: Resume from checkpoint via `/flow:go`
+- **Smart Continuation**: Resume from checkpoint via `/flow-workflow:go`
 
 See `templates.md` for full file templates.
