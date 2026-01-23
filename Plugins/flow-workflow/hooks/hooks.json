@@ -1,15 +1,3 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "AskUserQuestion",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Document user response in the active item's ITEM-XXX.md file - add to Decisions section for choices, or Requirements section for gathered requirements."
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
